@@ -445,7 +445,11 @@ function Remove-ExternalLinkArtifacts {
 
   $result = [pscustomobject]@{ NamesRemoved = 0; ReferencesRemoved = 0; PartsRemoved = 0 }
   $mainNs = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+  # External-workbook book index, e.g. ='[1]Sheet'!$A$1. Tested only AFTER string
+  # literals are stripped - a [N] inside a double-quoted constant (e.g. an AFE
+  # citation LAMBDA =LAMBDA("IPCC (2019), Chapter 10 [4]")) is NOT an external ref.
   $reExt  = [regex] '\[\d+\]'
+  $reStringLiteral = [regex] '"[^"]*"'
 
   $zip = [System.IO.Compression.ZipFile]::Open($TargetPath, [System.IO.Compression.ZipArchiveMode]::Update)
   try {
@@ -465,7 +469,8 @@ function Remove-ExternalLinkArtifacts {
     $definedNamesNode = $doc.SelectSingleNode('//x:definedNames', $ns)
     if ($null -ne $definedNamesNode) {
       foreach ($n in @($definedNamesNode.SelectNodes('x:definedName', $ns))) {
-        if ($reExt.IsMatch($n.InnerText)) { [void] $definedNamesNode.RemoveChild($n); $namesRemoved++ }
+        $refNoStrings = $reStringLiteral.Replace($n.InnerText, '')
+        if ($reExt.IsMatch($refNoStrings)) { [void] $definedNamesNode.RemoveChild($n); $namesRemoved++ }
       }
       if (-not $definedNamesNode.HasChildNodes) { [void] $definedNamesNode.ParentNode.RemoveChild($definedNamesNode) }
     }

@@ -11,8 +11,12 @@
 
     [cell]      Cells whose cached value is an Excel error (t="e"), e.g.
                 #REF!, #NAME?, #VALUE!, #DIV/0!, #N/A, #NULL!, #NUM!, #SPILL!,
-                #CALC!. The sheet, cell address, error token and formula (if
-                stored) are listed.
+                #CALC!. In a workbook flagged fullCalcOnLoad="1" (Excel recomputes
+                every formula on open) these cached errors are PROVISIONAL - a
+                stale one clears on recalc while a genuine one (missing sheet /
+                name) persists - so they are HIDDEN by default and only counted;
+                pass -IncludeCachedErrors to list them. A #REF! token in the
+                formula TEXT is structural and is always reported.
 
     [name]      Defined names whose RefersTo contains an Excel error token
                 (dangling / broken function) or is empty. Workbook- and
@@ -23,6 +27,11 @@
 
     [link]      Leftover external links to other workbook files. A
                 self-contained VEERG workbook should have none.
+
+    [sheet]     Formulas (and defined names) that reference a worksheet the
+                workbook does not contain - a guaranteed #REF! on recalc that a
+                cached-value scan can miss because the saved value is a stale-good
+                number carried over from a source workbook where the sheet existed.
 
     [sum]       SUM(...) calls whose literal range argument (e.g. SUM(D10:D25))
                 is a different size than the contiguous block of data actually
@@ -47,8 +56,8 @@
 
 .PARAMETER WorkbookPath
   Full path to a single .xlsx to scan. If omitted, every Excel/*.xlsx and
-  Excel/Enterprises/*.xlsx (excluding lock files, *_expanded*, *_template* and
-  *.bak backups) is scanned.
+  Excel/Enterprises/*.xlsx (excluding lock files, *_expanded*, *_template*,
+  *_clean* generated copies and *.bak backups) is scanned.
 
 .PARAMETER Max
   Maximum rows to list per category per workbook before summarising the rest.
@@ -68,11 +77,18 @@
   Skip the [sum] SUM-range-size heuristic (see DESCRIPTION). Use this to speed
   up a scan when you only care about hard errors.
 
+.PARAMETER IncludeCachedErrors
+  List cached cell errors (t="e") even in a fullCalcOnLoad workbook, where they
+  are provisional and hidden by default. Use it to hunt a genuine persistent
+  error (e.g. a #REF! from a sheet that was never imported) among the stale ones
+  that clear on Excel's on-open recalc.
+
 .EXAMPLE
   npm run find-errors
   npm run find-errors -- -WorkbookPath .\Excel\Enterprises\Enterprise_Dairy_WIP_v01.xlsx
   npm run find-errors -- -Max 0 -FailOnError
   npm run find-errors -- -IncludeLibraryFunctions
+  npm run find-errors -- -WorkbookPath .\Excel\Enterprises\Enterprise_CroppingGrains_WIP_v01.xlsx -IncludeCachedErrors
 #>
 param(
   [string] $RepoRoot = (Split-Path $PSScriptRoot -Parent),
@@ -80,6 +96,7 @@ param(
   [int]    $Max = 50,
   [switch] $IncludeLibraryFunctions,
   [switch] $SkipSumCheck,
+  [switch] $IncludeCachedErrors,
   [switch] $FailOnError
 )
 
@@ -96,6 +113,14 @@ $script:NsPkg  = 'http://schemas.openxmlformats.org/package/2006/relationships'
 # Excel error tokens that can appear in a defined name's RefersTo.
 $script:ErrorRegex = [regex]::new('#(REF!|NAME\?|DIV/0!|VALUE!|N/A|NULL!|NUM!|SPILL!|CALC!|FIELD!|GETTING_DATA|BLOCKED!|CONNECT!|BUSY!|UNKNOWN!)', 'IgnoreCase')
 
+# Sheet qualifier in a formula / RefersTo: 'Sheet Name'! or Sheet! (group 1 =
+# quoted name with '' escapes, group 2 = unquoted). Used to flag a reference to a
+# sheet the workbook does NOT contain - a guaranteed #REF! on recalc even when the
+# cached value is a stale-good number (so a cached-only scan can't see it). The
+# `#` in the unquoted lookbehind keeps error tokens (#REF! etc.) from matching.
+$script:SheetQualifierRegex = [regex]::new("(?:'((?:[^']|'')*)'|(?<![A-Za-z0-9_.\[#])([A-Za-z_][A-Za-z0-9_.]*))!", 'IgnoreCase')
+$script:StringLiteralRegex = [regex]::new('"(?:[^"]|"")*"')
+
 # --- [sum] SUM-range-size check regexes -------------------------------------
 # A call to SUM( - lookbehind blocks SUMIF/SUMIFS/SUMPRODUCT/SUMSQ/CUSTOM_SUM etc,
 # since those have something other than '(' right after "SUM".
@@ -105,9 +130,13 @@ $script:SumCallRegex = [regex]::new('(?<![A-Za-z0-9_.])SUM\(', 'IgnoreCase')
 # skipped on purpose (tables/names resize themselves).
 $script:RangeArgRegex = [regex]::new("^(?:(?<sheet>'[^']+'|[A-Za-z_][A-Za-z0-9_]*)!)?\`$?(?<c1>[A-Za-z]{1,3})\`$?(?<r1>[0-9]+):\`$?(?<c2>[A-Za-z]{1,3})\`$?(?<r2>[0-9]+)$")
 $script:CellRefRegex = [regex]::new('^([A-Za-z]+)([0-9]+)$')
-# Cells holding one of these are treated as a summary/total row, not list data,
-# so they never get swept into a "the data actually extends further" verdict.
-$script:AggregateFnRegex = [regex]::new('(?<![A-Za-z0-9_])(SUM|SUBTOTAL|AGGREGATE)\s*\(', 'IgnoreCase')
+# A cell is treated as a summary/total (not list data) ONLY when its formula
+# aggregates a PLAIN contiguous range - the classic total pattern SUM(D10:D25)
+# or SUBTOTAL(9,D10:D25). A value cell that merely uses SUM/SUBTOTAL/AGGREGATE
+# over a structured table ref (e.g. SUM(Table[Col])) is genuine data and must
+# still count, so it is NOT excluded. The optional leading `\d+,` handles the
+# function-number first argument of SUBTOTAL/AGGREGATE.
+$script:AggregateOfPlainRangeRegex = [regex]::new('(?<![A-Za-z0-9_])(?:SUM|SUBTOTAL|AGGREGATE)\s*\(\s*(?:\d+\s*,\s*)*(?:(?:''[^'']+''|[A-Za-z_][A-Za-z0-9_]*)!)?\$?[A-Za-z]{1,3}\$?\d+\s*:', 'IgnoreCase')
 # Text cells holding one of these placeholder phrases are a deliberate stand-in
 # for a number (SUM ignores text anyway) - treat the cell as valid data, not a
 # label/title, so it doesn't look like the row/column is missing from the SUM.
@@ -138,6 +167,7 @@ function Get-TargetWorkbooks {
         $_.Name -notlike '~$*' -and
         $_.BaseName -notmatch '(?i)_expanded' -and
         $_.BaseName -notmatch '(?i)_template' -and
+        $_.BaseName -notmatch '(?i)_clean' -and
         $_.Name -notmatch '(?i)\.bak'
       }
   }
@@ -226,11 +256,11 @@ function Get-FullCalcOnLoad {
 # ---------------------------------------------------------------------------
 # Cell errors. Two kinds are reported:
 #   * cached error   - the cell's stored value is an Excel error (t="e"), i.e. it
-#                      currently EVALUATES to an error. Skipped when the
-#                      workbook is flagged fullCalcOnLoad="1" - see
-#                      Get-FullCalcOnLoad - since the cached value is known
-#                      stale pending a recalc Excel will do automatically on
-#                      next open, not a real error.
+#                      currently EVALUATES to an error. In a workbook flagged
+#                      fullCalcOnLoad="1" these are PROVISIONAL (Excel recomputes
+#                      every formula on open) so the caller hides them by default
+#                      and only counts them; each returned object carries IsCached
+#                      so the caller can filter (see -IncludeCachedErrors).
 #   * formula error  - the cell's stored <f> formula TEXT contains an error token
 #                      (e.g. a #REF! left in the arguments) even though the cell
 #                      currently evaluates to a valid value because a function
@@ -239,7 +269,7 @@ function Get-FullCalcOnLoad {
 #                      the cached result or fullCalcOnLoad.
 # ---------------------------------------------------------------------------
 function Get-CellErrors {
-  param($Zip, [array] $SheetMap, [switch] $FullCalcOnLoad)
+  param($Zip, [array] $SheetMap)
   $errors = @()
   foreach ($sheet in $SheetMap) {
     if ([string]::IsNullOrEmpty($sheet.Part)) { continue }
@@ -263,10 +293,11 @@ function Get-CellErrors {
       $formulaText = if ($null -ne $fNode) { $fNode.InnerText } else { '' }
       $formulaMatch = $script:ErrorRegex.Match($formulaText)
 
-      if ($isCachedError -and $FullCalcOnLoad) {
-        continue   # stale cache pending Excel's own recalc-on-load - not a real error
-      } elseif ($isCachedError) {
-        # Currently evaluates to an error.
+      if ($isCachedError) {
+        # Currently evaluates to an error - reported regardless of fullCalcOnLoad.
+        # A genuine #REF!/#NAME? (missing sheet/name) does NOT recalc away; and now
+        # that the build no longer headless-recalcs, a recalc-transient cell saves a
+        # GOOD cached value (not an error), so a cached error on disk is real.
         $val = if ($null -ne $vNode) { $vNode.InnerText } else { '#(error)' }
       } elseif ($formulaMatch.Success) {
         # Latent error: the formula carries an error token but the cell currently
@@ -277,7 +308,7 @@ function Get-CellErrors {
       }
       $formula = if ($null -ne $fNode) { '=' + $formulaText } else { '' }
       $errors += [pscustomobject]@{
-        Sheet = $sheet.Name; Cell = $ref; Error = $val; Formula = $formula
+        Sheet = $sheet.Name; Cell = $ref; Error = $val; Formula = $formula; IsCached = $isCachedError
       }
     }
   }
@@ -343,16 +374,85 @@ function Get-ExternalLinks {
 }
 
 # ---------------------------------------------------------------------------
+# [sheet] References to a sheet the workbook does not contain. Scans cell
+# formulas and defined-name RefersTo for `'Sheet'!` / `Sheet!` qualifiers and
+# flags any sheet name not present in the workbook. Such a reference ALWAYS
+# evaluates to #REF! on recalc, but the saved cached value can be a stale-good
+# number (copied from a source workbook where the sheet existed), so the cached
+# [cell] scan misses it - this static check catches it regardless. External
+# `[N]` book references are left to the [link] category.
+# ---------------------------------------------------------------------------
+function Get-MissingSheetReferences {
+  param($Zip, [array] $SheetMap)
+  $issues = @()
+  $sheetSet = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($s in $SheetMap) { if (-not [string]::IsNullOrEmpty($s.Name)) { [void] $sheetSet.Add($s.Name) } }
+
+  $findMissing = {
+    param([string] $Text)
+    $missing = New-Object System.Collections.Generic.List[string]
+    if ([string]::IsNullOrEmpty($Text) -or $Text.IndexOf('!') -lt 0) { return $missing }
+    $noStr = $script:StringLiteralRegex.Replace($Text, '')   # drop "..." so INDIRECT("Sheet!..") strings don't match
+    foreach ($m in $script:SheetQualifierRegex.Matches($noStr)) {
+      $name = if ($m.Groups[1].Success) { $m.Groups[1].Value -replace "''", "'" } else { $m.Groups[2].Value }
+      if ([string]::IsNullOrWhiteSpace($name) -or $name.IndexOf('[') -ge 0) { continue }   # external book ref
+      foreach ($part in ($name -split ':')) {                                                # 3D ref 'S1:S2'
+        $p = $part.Trim()
+        if ([string]::IsNullOrWhiteSpace($p)) { continue }
+        if (-not $sheetSet.Contains($p) -and -not $missing.Contains($p)) { $missing.Add($p) }
+      }
+    }
+    return $missing
+  }
+
+  foreach ($sheet in $SheetMap) {
+    if ([string]::IsNullOrEmpty($sheet.Part)) { continue }
+    $text = Read-ZipEntryText -Zip $Zip -EntryName $sheet.Part
+    if ($null -eq $text -or $text.IndexOf('!') -lt 0) { continue }
+    $doc = New-XmlDoc -Text $text
+    $ns = New-NsManager -Doc $doc -Namespaces @{ x = $script:NsMain }
+    foreach ($fNode in @($doc.SelectNodes('//x:sheetData/x:row/x:c/x:f', $ns))) {
+      $missing = @(& $findMissing $fNode.InnerText)
+      if ($missing.Count -gt 0) {
+        $issues += [pscustomobject]@{
+          Location = ("'{0}'!{1}" -f $sheet.Name, $fNode.ParentNode.GetAttribute('r'))
+          Missing  = ($missing -join ', ')
+          Formula  = '=' + $fNode.InnerText
+        }
+      }
+    }
+  }
+
+  # Defined names: plain range refs only (skip LAMBDA / function bodies).
+  $wbText = Read-ZipEntryText -Zip $Zip -EntryName 'xl/workbook.xml'
+  if ($null -ne $wbText) {
+    $doc = New-XmlDoc -Text $wbText
+    $ns = New-NsManager -Doc $doc -Namespaces @{ x = $script:NsMain }
+    foreach ($n in @($doc.SelectNodes('//x:definedNames/x:definedName', $ns))) {
+      $rt = $n.InnerText
+      if ([string]::IsNullOrEmpty($rt) -or $rt.IndexOf('(') -ge 0) { continue }
+      $missing = @(& $findMissing $rt)
+      if ($missing.Count -gt 0) {
+        $issues += [pscustomobject]@{ Location = ("name {0}" -f $n.GetAttribute('name')); Missing = ($missing -join ', '); Formula = $rt }
+      }
+    }
+  }
+  return $issues
+}
+
+# ---------------------------------------------------------------------------
 # [sum] SUM-range-size check.
 #
 # For every literal-range SUM(...) argument, walk outward from the stated
 # range along its own axis (a single-row SUM only looks left/right in that
 # row; a single-column SUM only looks up/down in that column; a genuine
 # multi-row+multi-column block looks in both axes) and find the true extent
-# of contiguous data. A text cell (label/title) or a summary-formula cell
-# (SUM/SUBTOTAL/AGGREGATE) stops the walk without being counted as data, so
-# row/column titles at the near edge and "Total" cells at the far edge are
-# both ignored, per design. If the actual extent differs from what the SUM
+# of contiguous data. A text cell (label/title) or a block-total cell (an
+# aggregate over a PLAIN contiguous range, e.g. SUM(D10:D25)) stops the walk
+# without being counted as data, so row/column titles at the near edge and
+# "Total" cells at the far edge are both ignored, per design - but a value cell
+# that sums a structured table ref (SUM(Table[Col])) still counts. If the
+# actual extent differs from what the SUM
 # argument states, it's reported.
 # ---------------------------------------------------------------------------
 function ConvertFrom-ColumnLetters {
@@ -470,7 +570,9 @@ function Get-CellDisplayText {
 
 # Builds three sparse "row,col" -> $true maps for one sheet:
 #   Numeric      - unconditional data: a non-empty, non-text value that is not
-#                  itself a summary/total formula (SUM/SUBTOTAL/AGGREGATE).
+#                  itself a block total (an aggregate over a plain contiguous
+#                  range, e.g. SUM(D10:D25)). A cell that sums a structured
+#                  table ref (SUM(Table[Col])) is real data and still counts.
 #   Placeholder  - text cells matching a recognised placeholder (N/A, Not used,
 #                  Summed above). These are CONDITIONAL data: they only count
 #                  when they sit among numbers, not among real text labels (see
@@ -505,7 +607,7 @@ function Build-SheetCellMaps {
       else { $label[$key] = $true }   # real label/title
     } else {
       $fNode = $c.SelectSingleNode('x:f', $ns)
-      if ($null -ne $fNode -and $script:AggregateFnRegex.IsMatch($fNode.InnerText)) { continue }   # total/subtotal cell
+      if ($null -ne $fNode -and $script:AggregateOfPlainRangeRegex.IsMatch($fNode.InnerText)) { continue }   # block total over a plain range
       if ($null -eq $vNode -or [string]::IsNullOrEmpty($vNode.InnerText)) { continue }   # empty cell
       $numeric[$key] = $true
     }
@@ -688,19 +790,20 @@ if (@($workbooks).Count -eq 0) { Write-Host 'No workbooks found to scan.'; retur
 
 Write-Host ("Scanning {0} workbook(s) for errors (read-only)..." -f @($workbooks).Count)
 
-$grand = @{ cell = 0; name = 0; link = 0; sum = 0; marked = 0; wbWithIssues = 0 }
+$grand = @{ cell = 0; name = 0; link = 0; sheet = 0; sum = 0; marked = 0; hiddenCached = 0; wbWithIssues = 0 }
 
 foreach ($path in $workbooks) {
   $leaf = Split-Path $path -Leaf
-  $cellErrors = @(); $nameErrors = @(); $extLinks = @(); $sumMismatches = @(); $sumMarked = 0
+  $cellErrors = @(); $nameErrors = @(); $extLinks = @(); $sumMismatches = @(); $sumMarked = 0; $missingSheetRefs = @(); $fullCalcOnLoad = $false
   try {
     $zip = [System.IO.Compression.ZipFile]::Open($path, [System.IO.Compression.ZipArchiveMode]::Read)
     try {
       $sheetMap   = @(Get-SheetMap -Zip $zip)
       $fullCalcOnLoad = Get-FullCalcOnLoad -Zip $zip
-      $cellErrors = @(Get-CellErrors  -Zip $zip -SheetMap $sheetMap -FullCalcOnLoad:$fullCalcOnLoad)
+      $cellErrors = @(Get-CellErrors  -Zip $zip -SheetMap $sheetMap)
       $nameErrors = @(Get-NameErrors  -Zip $zip -SheetMap $sheetMap -IncludeLibraryFunctions:$IncludeLibraryFunctions)
       $extLinks   = @(Get-ExternalLinks -Zip $zip)
+      $missingSheetRefs = @(Get-MissingSheetReferences -Zip $zip -SheetMap $sheetMap)
       if (-not $SkipSumCheck) {
         $sumResult     = Get-SumRangeMismatches -Zip $zip -SheetMap $sheetMap
         $sumMismatches = @($sumResult.Issues)
@@ -716,7 +819,13 @@ foreach ($path in $workbooks) {
   }
 
   $grand.marked += $sumMarked
-  $total = $cellErrors.Count + $nameErrors.Count + $extLinks.Count + $sumMismatches.Count
+  # In a fullCalcOnLoad workbook cached cell errors are provisional (Excel recomputes
+  # on open); hide them by default, still count them. Structural formula-text errors
+  # (IsCached=$false) are always shown.
+  $shownCellErrors = @(if ($fullCalcOnLoad -and -not $IncludeCachedErrors) { $cellErrors | Where-Object { -not $_.IsCached } } else { $cellErrors })
+  $hiddenCached = @($cellErrors).Count - $shownCellErrors.Count
+  $grand.hiddenCached += $hiddenCached
+  $total = $shownCellErrors.Count + $nameErrors.Count + $extLinks.Count + $missingSheetRefs.Count + $sumMismatches.Count
   if ($total -eq 0) { continue }
   $grand.wbWithIssues++
 
@@ -724,12 +833,15 @@ foreach ($path in $workbooks) {
   Write-Host ('=' * 78)
   Write-Host ("Workbook : {0}" -f $leaf)
 
-  if ($cellErrors.Count -gt 0) {
-    $grand.cell += $cellErrors.Count
-    Write-Host ("  Cell errors ({0}):" -f $cellErrors.Count) -ForegroundColor Red
-    Write-Capped -Items $cellErrors -Max $Max -Format {
+  if ($shownCellErrors.Count -gt 0) {
+    $grand.cell += $shownCellErrors.Count
+    Write-Host ("  Cell errors ({0}):" -f $shownCellErrors.Count) -ForegroundColor Red
+    Write-Capped -Items $shownCellErrors -Max $Max -Format {
       param($e) "[{0,-8}] '{1}'!{2}  {3}" -f $e.Error, $e.Sheet, $e.Cell, $e.Formula
     }
+  }
+  if ($hiddenCached -gt 0) {
+    Write-Host ("  {0} cached cell error(s) hidden (workbook recalculates on open); pass -IncludeCachedErrors to list." -f $hiddenCached) -ForegroundColor DarkGray
   }
 
   if ($nameErrors.Count -gt 0) {
@@ -746,6 +858,14 @@ foreach ($path in $workbooks) {
     Write-Capped -Items $extLinks -Max $Max -Format { param($l) $l }
   }
 
+  if ($missingSheetRefs.Count -gt 0) {
+    $grand.sheet += $missingSheetRefs.Count
+    Write-Host ("  References to missing sheets ({0}):" -f $missingSheetRefs.Count) -ForegroundColor Magenta
+    Write-Capped -Items $missingSheetRefs -Max $Max -Format {
+      param($s) "{0}  -> missing sheet(s): {1}   {2}" -f $s.Location, $s.Missing, $s.Formula
+    }
+  }
+
   if ($sumMismatches.Count -gt 0) {
     $grand.sum += $sumMismatches.Count
     Write-Host ("  SUM range size mismatches ({0}):" -f $sumMismatches.Count) -ForegroundColor Cyan
@@ -757,6 +877,19 @@ foreach ($path in $workbooks) {
     if ($sumMarked -gt 0) {
       Write-Host ("    ({0} other SUM formula(s) marked intentional via N(`"Partial...`") - skipped)" -f $sumMarked) -ForegroundColor DarkGray
     }
+    if ($fullCalcOnLoad) {
+      # Unlike [cell], the [sum] check has no provisional/stale-cache awareness -
+      # it reads cached values straight from the pre-recalc XML. A cell that is
+      # really a text label (e.g. a shared formula rendering month names) can
+      # show a stale cached error under fullCalcOnLoad and get miscounted as
+      # numeric data, widening the detected block past a label column that was
+      # never meant to be summed. Recalculating (Excel + Excel Labs add-in,
+      # Ctrl+Alt+F9) and saving replaces every provisional cached value with a
+      # real one, which resolves this at the source - a headless recalc must
+      # NOT be used instead (no add-in loaded -> bakes #NAME? into every
+      # Module.Func() cell, see build-scope3-excel.md).
+      Write-Warning ("  '{0}' has not been recalculated since building (fullCalcOnLoad=1). SUM range mismatches above may be false positives from stale cached values - open in Excel with the Excel Labs add-in, force a full recalc, and save, then re-run find-errors." -f $leaf)
+    }
   }
 }
 
@@ -765,11 +898,14 @@ Write-Host ('=' * 78)
 if ($grand.wbWithIssues -eq 0) {
   Write-Host ("CLEAN: no errors found in {0} workbook(s)." -f @($workbooks).Count) -ForegroundColor Green
 } else {
-  Write-Host ("TOTAL: {0} cell error(s), {1} broken name(s), {2} external link(s), {3} SUM range mismatch(es) across {4} of {5} workbook(s)." -f `
-    $grand.cell, $grand.name, $grand.link, $grand.sum, $grand.wbWithIssues, @($workbooks).Count)
+  Write-Host ("TOTAL: {0} cell error(s), {1} broken name(s), {2} external link(s), {3} missing-sheet ref(s), {4} SUM range mismatch(es) across {5} of {6} workbook(s)." -f `
+    $grand.cell, $grand.name, $grand.link, $grand.sheet, $grand.sum, $grand.wbWithIssues, @($workbooks).Count)
 }
 if ($grand.marked -gt 0) {
   Write-Host ("       ({0} SUM formula(s) marked intentional via N(`"Partial...`") across all scanned workbooks)" -f $grand.marked) -ForegroundColor DarkGray
+}
+if ($grand.hiddenCached -gt 0 -and -not $IncludeCachedErrors) {
+  Write-Host ("       ({0} provisional cached cell error(s) hidden under fullCalcOnLoad; pass -IncludeCachedErrors to list)" -f $grand.hiddenCached) -ForegroundColor DarkGray
 }
 
 if ($FailOnError -and ($grand.cell -gt 0 -or $grand.name -gt 0)) { exit 1 }

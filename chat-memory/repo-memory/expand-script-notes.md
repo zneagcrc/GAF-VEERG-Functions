@@ -1,0 +1,2 @@
+- In scripts/expand-veerg-lambda-references.ps1, SourceData array results must be written as a matrix via cell offsets; stringifying spill/array values collapses multiple rows into one cell.
+- Zero-arg SourceData lambdas can contain either string literals or Excel array constants; preserve both when replacing formulas with values.

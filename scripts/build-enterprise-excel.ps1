@@ -334,23 +334,7 @@ function Remove-RedundantSheetScopedNames {
       $removed++
     }
 
-    # Force a full recalculation on next open so cells that referenced a removed
-    # shadow drop their stale cached error values. Set <calcPr fullCalcOnLoad="1">
-    # (creating the element after definedNames if absent); Excel then recomputes
-    # every formula on open, replacing the cached #VALUE!/#REF! results.
-    $workbookNode = $doc.SelectSingleNode('//x:workbook', $ns)
-    $calcPr = $doc.SelectSingleNode('//x:calcPr', $ns)
-    $calcChanged = $false
-    if ($null -eq $calcPr -and $null -ne $workbookNode) {
-      $calcPr = $doc.CreateElement('calcPr', $mainNs)
-      [void] $workbookNode.InsertAfter($calcPr, $definedNamesNode)
-    }
-    if ($null -ne $calcPr -and $calcPr.GetAttribute('fullCalcOnLoad') -ne '1') {
-      $calcPr.SetAttribute('fullCalcOnLoad', '1')
-      $calcChanged = $true
-    }
-
-    if ($removed -gt 0 -or $calcChanged) {
+    if ($removed -gt 0) {
       $old = $zip.GetEntry('xl/workbook.xml')
       if ($null -ne $old) { $old.Delete() }
       $newEntry = $zip.CreateEntry('xl/workbook.xml')
@@ -362,6 +346,57 @@ function Remove-RedundantSheetScopedNames {
   } finally { $zip.Dispose() }
 
   return $result
+}
+
+# ---------------------------------------------------------------------------
+# Force a full recalculation on next open by setting <calcPr fullCalcOnLoad="1">
+# (XML-only, no COM). Cells that referenced a pruned shadow name, or that Excel
+# imported with a stale cached value, then recompute in the user's Excel (which
+# has the Excel Labs add-in) instead of showing a stale #VALUE!/#REF!/blank.
+#
+# MUST be the LAST build step. If this flag is set BEFORE a headless COM open
+# (e.g. the AFE named-function republish), that open triggers a full recalc with
+# no add-in loaded, which bakes #NAME?/blank into every AFE (Module.Func()) cell
+# and clears the flag on save - the exact cause of "cell is blank until F2".
+# ---------------------------------------------------------------------------
+function Set-FullCalcOnLoad {
+  param([string] $TargetPath)
+
+  $mainNs = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+  $zip = [System.IO.Compression.ZipFile]::Open($TargetPath, [System.IO.Compression.ZipArchiveMode]::Update)
+  try {
+    $entry = $zip.GetEntry('xl/workbook.xml')
+    if ($null -eq $entry) { return $false }
+    $reader = [System.IO.StreamReader]::new($entry.Open(), [System.Text.Encoding]::UTF8)
+    try { $xmlText = $reader.ReadToEnd() } finally { $reader.Dispose() }
+
+    $doc = New-Object System.Xml.XmlDocument
+    $doc.PreserveWhitespace = $true
+    $doc.LoadXml($xmlText)
+    $ns = New-Object System.Xml.XmlNamespaceManager($doc.NameTable)
+    $ns.AddNamespace('x', $mainNs)
+
+    $calcPr = $doc.SelectSingleNode('//x:calcPr', $ns)
+    if ($null -ne $calcPr -and $calcPr.GetAttribute('fullCalcOnLoad') -eq '1') { return $false }  # already set
+
+    if ($null -eq $calcPr) {
+      $workbookNode = $doc.SelectSingleNode('//x:workbook', $ns)
+      if ($null -eq $workbookNode) { return $false }
+      $calcPr = $doc.CreateElement('calcPr', $mainNs)
+      # calcPr must follow definedNames (else sheets) in the OOXML element order.
+      $anchor = $doc.SelectSingleNode('//x:definedNames', $ns)
+      if ($null -eq $anchor) { $anchor = $doc.SelectSingleNode('//x:sheets', $ns) }
+      if ($null -ne $anchor) { [void] $workbookNode.InsertAfter($calcPr, $anchor) } else { [void] $workbookNode.AppendChild($calcPr) }
+    }
+    $calcPr.SetAttribute('fullCalcOnLoad', '1')
+
+    $old = $zip.GetEntry('xl/workbook.xml')
+    if ($null -ne $old) { $old.Delete() }
+    $newEntry = $zip.CreateEntry('xl/workbook.xml')
+    $writer = [System.IO.StreamWriter]::new($newEntry.Open(), [System.Text.UTF8Encoding]::new($false))
+    try { $doc.Save($writer) } finally { $writer.Dispose() }
+    return $true
+  } finally { $zip.Dispose() }
 }
 
 # ---------------------------------------------------------------------------
@@ -522,6 +557,8 @@ if ($PruneShadowsOnly) {
   Write-Host 'Pruning redundant sheet-scoped (shadow) names...'
   $dedup = Remove-RedundantSheetScopedNames -TargetPath $OutputPath -AuthoritativeNames $templateNameSet
   Write-Host ("  Removed {0} shadow name(s); kept {1}." -f $dedup.Removed, $dedup.Kept) -ForegroundColor Green
+  # No COM open follows in prune-only mode, so setting the recalc flag here is safe.
+  [void] (Set-FullCalcOnLoad -TargetPath $OutputPath)
   return
 }
 
@@ -949,10 +986,19 @@ try {
     # immediately followed by a structured-table reference, e.g.
     #   '<full path>\book.xlsx'!Table_X[Col]     (no [..] brackets: workbook-level name)
     #   '<path>[book.xlsx]sheet'!Table_X[Col]
+    #   book.xlsx!Table_X[Col]                   (unquoted: filename has no spaces, so
+    #                                              Excel emits no quotes while the source
+    #                                              workbook is still open - the state this
+    #                                              pass always runs in, since sources aren't
+    #                                              closed until after save)
     # The table is a workbook-scoped ListObject, so when it is now local drop the
-    # whole '...'! qualifier to leave the bare TableName[...] structured reference.
-    # Requiring ".xls" in the quoted span keeps local 'Sheet'!Range refs untouched.
-    $reTableRef = [regex] "'[^']*\.xls[a-z]*[^']*'!(?<name>[A-Za-z_\\][A-Za-z0-9_.\\]*)(?=\[)"
+    # whole qualifier + '!' to leave the bare TableName[...] structured reference.
+    # Requiring ".xls" in the qualifier keeps local 'Sheet'!Range refs untouched.
+    # The unquoted alternative is restricted to plain filename characters (no
+    # parens/spaces) and anchored so it can't start mid-identifier (no preceding
+    # word char/quote) - otherwise it would swallow whatever formula text
+    # precedes it up to the nearest earlier '.xls', e.g. 'IFERROR(INDEX(13_Foo.xlsx'.
+    $reTableRef = [regex] "(?:'[^']*\.xls[a-z]*[^']*'|(?<![\w'])[A-Za-z0-9_-]+\.xls[a-z]*)!(?<name>[A-Za-z_\\][A-Za-z0-9_.\\]*)(?=\[)"
     $evalTable = [System.Text.RegularExpressions.MatchEvaluator] {
       param($m)
       $name = $m.Groups['name'].Value
@@ -960,11 +1006,12 @@ try {
       return $m.Value
     }
 
-    # A quoted qualifier that STILL names another workbook after localisation:
-    # it contains a [book.xlsx] token or a '.xls*' path and is immediately
+    # A qualifier that STILL names another workbook after localisation: a quoted
+    # span containing a [book.xlsx] token or a '.xls*' path, OR the same bare
+    # unquoted book.xlsx form the table-ref localiser above matches, immediately
     # followed by '!'. Used below to decide whether a cell must be blanked
     # instead of having its localised/repointed formula written back.
-    $reExternalCell = [regex] "'[^']*(?:\[[^'\]]*\]|\.xls[A-Za-z]*)[^']*'!"
+    $reExternalCell = [regex] "(?:'[^']*(?:\[[^'\]]*\]|\.xls[A-Za-z]*)[^']*'|(?<![\w'])[A-Za-z0-9_-]+\.xls[a-zA-Z]*)!"
 
     # Per-sheet repoint rules: a module whose input sheet was imported under a
     # distinct name still holds formulas that reference the ORIGINAL sheet
@@ -1211,6 +1258,14 @@ try {
   }
 
   Mark-Phase 'zoom normalisation'
+  # --- Force full recalc on next open (MUST be the LAST step, after all COM) ---
+  # Set this only now that every COM open is done, so no headless recalc (which
+  # lacks the Excel Labs add-in) can bake #NAME?/blank into AFE cells or clear it.
+  if (-not $DryRun) {
+    if (Set-FullCalcOnLoad -TargetPath $OutputPath) { Write-Host 'Set fullCalcOnLoad=1 (recalc on next open).' }
+  }
+
+  Mark-Phase 'full recalc flag'
   # --- Summary ----------------------------------------------------------------
   Write-Host ''
   Write-Host "===================== Summary ====================="

@@ -3,8 +3,8 @@
   "_usage": "Under 'InputCells' key each entry by its CellName; under 'InputTables' key each entry by its TableName and (optionally) its columns by column key. The properties you set are copied onto the matching field as-is, so you can add whatever the consuming app understands (Label, Group, Order, Hidden, Default, UseDefault, HelpText, ...). Setting an existing generated property (e.g. CellType) replaces it. Use 'FieldGroups' to lay out cells/tables into named groups in any order you like; each group's Items is an array of cell/table names and/or nested subgroups.",
   "_usage_influences": "Use 'Influences' to declare, in ONE place, sets of cells/tables that influence each other (a change to any member affects the others). Each entry's 'Members' is a flat list of cell and/or table names that all mutually influence every other member of the same set - the relationship is undirected, so you never repeat it per field. The consuming app derives each field's influenced/influenced-by list from these sets; do not add per-field Influences/InfluencedBy attributes.",
   "_schema": {
-    "InputCells": { "<CellName>": { "Label": "text", "Group": "text", "ChatHelp": false, "CanRollOver": false, "ExcelExcluded": false, "CanOverWriteFormula":false, "Order": 0, "Hidden": false, "UseDefault": false, "Default": "value", "DuplicateOf": "value", "CanMarkAsNotUsed": false, "AllowsAttachment": false, "Optional": false, "NotUsedWhen": "condition" } },
-    "InputTables": { "<TableName>": { "Label": "text", "Group": "text", "ChatHelp":false, "CanRollOver": false, "ExcelExcluded": false, "FixedRows": false, "Columns": { "<ColumnKey>": { "Label": "text", "Default": "value", "CanMarkAsNotUsed": false, "AllowsAttachment": false, "Optional": false, "CanOverWriteFormula": false, "NotUsedWhen": "condition" } } } },
+    "InputCells": { "<CellName>": { "Label": "text", "Group": "text", "ChatHelp": false, "CanRollOver": false, "ExcelExcluded": false, "CanOverWriteFormula":false, "DataQualityMapping": "text", "Order": 0, "Hidden": false, "UseDefault": false, "Default": "value", "DuplicateOf": "value", "CanMarkAsNotUsed": false, "AllowsAttachment": false, "Optional": false, "NotUsedWhen": "condition" } },
+    "InputTables": { "<TableName>": { "Label": "text", "Group": "text", "ChatHelp":false, "CanRollOver": false, "ExcelExcluded": false, "FixedRows": false, "DataQualityMapping": "text", "Columns": { "<ColumnKey>": { "Label": "text", "Default": "value", "CanMarkAsNotUsed": false, "AllowsAttachment": false, "Optional": false, "CanOverWriteFormula": false, "NotUsedWhen": "condition" } } } },
     "FieldGroups": [ { "Name": "text", "Items": [ "<CellOrTableName>", { "Name": "text", "Items": [ "<CellOrTableName>" ] } ] } ],
     "FirstClassResults": { "<ResultName>": { "Label": "text" } },
     "ActivityPeriodResultTables": { "<TableName>": { "CycleLabelColumn": "<ColumnKey>", "ResultColumns": { "<ResultName>": "<ColumnKey>" } } },
@@ -38,31 +38,37 @@
     },
     "X_Cell_Electricity_Location_AmountPurchasedInkWh": {
       "AllowsAttachment": true,
+      "DataQualityMapping": "Electricity consumption",
       "DependentOn": "X_Cell_Electricity_CalculationMethod",
       "NotUsedWhen": { "Field": "X_Cell_Electricity_CalculationMethod", "Equals": "Market-based (More complex)" }
     },
     "X_Cell_Electricity_Location_GridElectricityPurchasedFrom": {
       "AllowsAttachment": true,
+      "DataQualityMapping": "Electricity consumption",
       "DependentOn": "X_Cell_Electricity_CalculationMethod",
       "NotUsedWhen": { "Field": "X_Cell_Electricity_CalculationMethod", "Equals": "Market-based (More complex)" }
     },
     "X_Cell_Electricity_Market_AmountPurchasedExcludingGreenPower": {
       "AllowsAttachment": true,
+      "DataQualityMapping": "Electricity consumption",
       "DependentOn": "X_Cell_Electricity_CalculationMethod",
       "NotUsedWhen": { "Field": "X_Cell_Electricity_CalculationMethod", "Equals": "Location-based (Simpler)" }
     },
     "X_Cell_Electricity_Market_RenewablePowerPercentage": {
       "AllowsAttachment": true,
+      "DataQualityMapping": "Electricity consumption",
       "DependentOn": "X_Cell_Electricity_CalculationMethod",
       "NotUsedWhen": { "Field": "X_Cell_Electricity_CalculationMethod", "Equals": "Location-based (Simpler)" }
     },
     "X_Cell_Electricity_Market_JurisdictionalRenewablePowerPercentage": {
       "AllowsAttachment": true,
+      "DataQualityMapping": "Electricity generation",
       "DependentOn": "X_Cell_Electricity_CalculationMethod",
       "NotUsedWhen": { "Field": "X_Cell_Electricity_CalculationMethod", "Equals": "Location-based (Simpler)" }
     },
     "X_Cell_Electricity_Market_AmountPurchasedGreenPower": {
       "AllowsAttachment": true,
+      "DataQualityMapping": "Electricity consumption",
       "DependentOn": "X_Cell_Electricity_CalculationMethod",
       "NotUsedWhen": { "Field": "X_Cell_Electricity_CalculationMethod", "Equals": "Location-based (Simpler)" }
     },
@@ -92,6 +98,7 @@
 	"X_Cell_Pasture_YieldPerHectare": {
         "CanOverWriteFormula": true,
         "AllowsAttachment": true,
+        "DataQualityMapping": "Pasture yield",
         "ChatHelp": true,
         "DefaultDataDocumentType": "JSON",
         "DefaultDataFile": "node_modules/gaf-veerg-functions/generated-sourcedata/AgResidue_SourceData.sourcedata.json",
@@ -149,12 +156,14 @@
     "Table_Input_RECSurrendered": {
       "ChatHelp": true,
       "AllowsAttachment": true,
+      "DataQualityMapping": "Electricity generation",
       "DependentOn": "X_Cell_Electricity_CalculationMethod",
       "NotUsedWhen": { "Field": "X_Cell_Electricity_CalculationMethod", "Equals": "Location-based (Simpler)" }
     },
     "Table_Input_RECConsumedByEntity": {
       "ChatHelp": true,
       "AllowsAttachment": true,
+      "DataQualityMapping": "Electricity generation",
       "DependentOn": "X_Cell_Electricity_CalculationMethod",
       "NotUsedWhen": { "Field": "X_Cell_Electricity_CalculationMethod", "Equals": "Location-based (Simpler)" }
     },
@@ -205,6 +214,7 @@
       "ChatHelp": true,
       "CanRollOver": true,
       "AllowsAttachment": true,
+      "DataQualityMapping": "Crude protein in diet",
       "Columns": {
         "January": { "CanOverWriteFormula": true },
         "February": { "CanOverWriteFormula": true },
@@ -227,6 +237,7 @@
     "X_Table_PastureBeef_DryMatterDigestibility_Method2": {
       "ChatHelp": true,
       "AllowsAttachment": true,
+      "DataQualityMapping": "Dry matter digestibility of diet",
       "Columns": {
         "January": { "CanOverWriteFormula": true },
         "February": { "CanOverWriteFormula": true },
@@ -274,6 +285,7 @@
       "ChatHelp": true,
       "CanRollOver": true,
       "AllowsAttachment": true,
+      "DataQualityMapping": "Liveweight", 
       "Columns": {
         "January": { "CanOverWriteFormula": true },
         "February": { "CanOverWriteFormula": true },
@@ -297,6 +309,7 @@
       "ChatHelp": true,
       "CanRollOver": true,
       "AllowsAttachment": true,
+      "DataQualityMapping": "Liveweight gain",
       "Columns": {
         "January": { "CanOverWriteFormula": true },
         "February": { "CanOverWriteFormula": true },
@@ -318,31 +331,38 @@
     },
     "Table_Input_InorganicFertiliser_Brands":{
         "CanMarkAsNotUsed": true,
-        "AllowsAttachment": true
+        "AllowsAttachment": true,
+        "DataQualityMapping": "Branded inorganic fertiliser applications"
     },
     "Table_Input_InorganicFertiliser_Custom":{
         "CanMarkAsNotUsed": true,
-        "AllowsAttachment": true
+        "AllowsAttachment": true,
+        "DataQualityMapping": "Custom inorganic fertiliser blend applications"
     },
     "Table_Input_Lime":{
         "CanMarkAsNotUsed": true,
-        "AllowsAttachment": true
+        "AllowsAttachment": true,
+        "DataQualityMapping": "Lime applications"
     },
     "Table_Input_OrganicFertiliser":{
         "CanMarkAsNotUsed": true,
-        "AllowsAttachment": true
+        "AllowsAttachment": true,
+        "DataQualityMapping": "Organic fertiliser applications"
     },
     "Table_Input_Fuel":{
         "CanMarkAsNotUsed": true,
-        "AllowsAttachment": true
+        "AllowsAttachment": true,
+        "DataQualityMapping": ["Fuel purchases", "Fuel consumption"]
     },
     "Table_Input_LivestockPurchases_Beefcattle":{
         "CanMarkAsNotUsed": true,
         "AllowsAttachment": true,
+        "DataQualityMapping": "Livestock purchases",
         "DependentOn": ["X_Cell_PastureBeef_Method1OrMethod2", "X_Cell_PastureBeef_HerdMovementMethod"]
     },
     "Table_Input_LivestockSales": {
       "AllowsAttachment": true,
+      "DataQualityMapping": "Livestock sales",
         "DependentOn": ["X_Cell_PastureBeef_Method1OrMethod2", "X_Cell_PastureBeef_HerdMovementMethod"]
     },
     "X_Table_Result_ActivityPeriodEmissions_RowsToCols":{
@@ -393,7 +413,7 @@
         } },
         "Date": { "CellType": "date" },
         "HeadCount": { "CellType": "number" },
-        "Cause": { "CellType": "text" }
+        "Cause": { "CellType": "text", "Optional": true }
       } }
     },
     "Table_Input_HerdTransfersIn": {
@@ -485,6 +505,10 @@
         "Notes": { "Optional": true },
         "EvidenceFiles": { "Optional": true }
       }
+    },
+    "Table_Input_Enterprise_PlantingRemovals": {
+      "CanMarkAsNotUsed": true,
+      "AllowsAttachment": true
     }
   },
 
@@ -530,6 +554,15 @@
       ]
     },
     {
+      "Name": "Herd diet",
+      "Items": [
+        "X_Table_PastureBeef_CrudeProtein_Method1",
+        "X_Table_PastureBeef_DryMatterDigestibility_Method1",
+        "X_Table_PastureBeef_CrudeProtein_Method2",
+        "X_Table_PastureBeef_DryMatterDigestibility_Method2"
+      ]
+    },
+    {
       "Name": "Pasture management",
       "Items": [
         "X_Cell_Pasture_PastureType",
@@ -541,15 +574,6 @@
         "Table_Input_InorganicFertiliser_Custom",
         "Table_Input_Lime",
         "Table_Input_OrganicFertiliser"
-      ]
-    },
-    {
-      "Name": "Herd diet",
-      "Items": [
-        "X_Table_PastureBeef_CrudeProtein_Method1",
-        "X_Table_PastureBeef_DryMatterDigestibility_Method1",
-        "X_Table_PastureBeef_CrudeProtein_Method2",
-        "X_Table_PastureBeef_DryMatterDigestibility_Method2"
       ]
     },
     {
