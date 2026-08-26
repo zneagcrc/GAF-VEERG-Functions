@@ -48,6 +48,16 @@
                 the checker skips any formula containing N("Partial...").
                 Advisory only (heuristic, not included in -FailOnError).
 
+    [shift]     A cell used as a direct operand of an arithmetic operator
+                (+ - * / ^) holds text, or is blank, instead of a number or a
+                formula. Catches the classic "formula was copied/pasted and a
+                relative reference landed on the wrong cell" mistake. Only
+                plain A1-style references are examined - a named reference
+                (X_Cell_*, Result_*, VEERG_*, Table_*) is assumed correct and
+                is never flagged, since it doesn't move when a formula is
+                pasted elsewhere and so isn't at risk of this bug. Advisory
+                only (heuristic, not included in -FailOnError).
+
   DRY / read-only ALWAYS: nothing is ever written. Use it after a build (e.g.
   `npm run build-enterprise`) to confirm the workbooks are clean.
 
@@ -77,6 +87,9 @@
   Skip the [sum] SUM-range-size heuristic (see DESCRIPTION). Use this to speed
   up a scan when you only care about hard errors.
 
+.PARAMETER SkipNumericOperandCheck
+  Skip the [shift] numeric-operand-type heuristic (see DESCRIPTION).
+
 .PARAMETER IncludeCachedErrors
   List cached cell errors (t="e") even in a fullCalcOnLoad workbook, where they
   are provisional and hidden by default. Use it to hunt a genuine persistent
@@ -96,6 +109,7 @@ param(
   [int]    $Max = 50,
   [switch] $IncludeLibraryFunctions,
   [switch] $SkipSumCheck,
+  [switch] $SkipNumericOperandCheck,
   [switch] $IncludeCachedErrors,
   [switch] $FailOnError
 )
@@ -148,6 +162,30 @@ $script:ValidPlaceholderTextRegex = [regex]::new('^\s*(n/a|not used|summed above
 # result. Any SUM range mismatch in a formula that carries this marker is
 # skipped rather than reported.
 $script:PartialSumMarkerRegex = [regex]::new('N\(\s*"\s*partial\b', 'IgnoreCase')
+
+# --- [shift] numeric-operand type check regexes -----------------------------
+# A plain A1-style cell reference, optionally sheet-qualified, guarded on both
+# sides so it can't match a fragment of a longer identifier, a range endpoint
+# (A1:B1), a structured-table ref, or a function name (LOG10(...), including
+# with a space before the paren). Deliberately does NOT match defined names
+# (X_Cell_*, Result_*, VEERG_*, ...) - those never have this col-then-digits
+# shape, which is exactly the point: a named reference is immune to the
+# copy-paste "reference shifted to the wrong cell" bug this check hunts for,
+# since it doesn't move when the formula is pasted elsewhere, only a plain
+# relative/absolute A1 reference can land on the wrong cell that way.
+$script:ArithOperandRegex = [regex]::new(@'
+(?<![A-Za-z0-9_:])
+(?:(?<sheet>'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_.]*)!)?
+\$?(?<col>[A-Za-z]{1,3})\$?(?<row>[0-9]+)
+(?![A-Za-z0-9_\[:])(?!\s*\()
+'@, 'IgnorePatternWhitespace')
+# A bracketed span - structured-table column name (Table[CO2-e factor]) or
+# LAMBDA array literal. Column names are free text and can contain almost
+# anything (hyphens, "CO2-e factor" reads as column "CO" row 2 to the cell-ref
+# regex, with the following "-" then looking like an adjacent minus operator),
+# so these must be stripped before scanning, same as string literals. Applied
+# repeatedly to peel nested spans (Table[[#Headers],[Col]]) from the inside out.
+$script:BracketSpanRegex = [regex]::new('\[[^\[\]]*\]')
 
 # ---------------------------------------------------------------------------
 # Workbook discovery.
@@ -773,6 +811,119 @@ function Get-SumRangeMismatches {
 }
 
 # ---------------------------------------------------------------------------
+# [shift] Numeric-operand type check.
+#
+# Hunts for the classic "formula was copied/pasted and a relative reference
+# landed on the wrong cell" mistake: a cell used as a direct operand of an
+# arithmetic operator (+ - * / ^) should hold a number, or a formula (trusted
+# to produce one) - not hard-coded text, and not be blank. Only plain A1-style
+# references are examined (see $script:ArithOperandRegex) - a named reference
+# (X_Cell_*, Result_*, VEERG_*, Table_*) never has that shape and is immune to
+# this bug in the first place, since it doesn't move when a formula is pasted
+# elsewhere; nothing here second-guesses a named reference.
+# ---------------------------------------------------------------------------
+function Test-ArithOperatorAdjacent {
+  # True if the cell-ref match at [Start,End) in $Text is immediately next to
+  # (ignoring spaces) a +, -, *, / or ^ on either side.
+  param([string] $Text, [int] $Start, [int] $End)
+  $ops = '+-*/^'
+  $i = $Start - 1
+  while ($i -ge 0 -and $Text[$i] -eq ' ') { $i-- }
+  if ($i -ge 0 -and $ops.IndexOf($Text[$i]) -ge 0) { return $true }
+  $j = $End
+  while ($j -lt $Text.Length -and $Text[$j] -eq ' ') { $j++ }
+  if ($j -lt $Text.Length -and $ops.IndexOf($Text[$j]) -ge 0) { return $true }
+  return $false
+}
+
+function Build-CellClassificationMap {
+  # One entry per non-empty cell on the sheet: Kind is 'Formula' (has <f>,
+  # trusted regardless of cached type/value), 'Numeric', 'Boolean' (both
+  # coerce fine in arithmetic), or 'Text' (Display holds the resolved text).
+  # A bare error CONSTANT (t="e", no <f> - vanishingly rare; the shared-
+  # formula-follower shape that looks like this always still carries an
+  # empty <f t="shared".../> node, which already counts as 'Formula') is
+  # treated as 'Formula' too rather than adding a third flag-worthy kind that
+  # would just duplicate the [cell] category's job.
+  param($Zip, $Sheet, $SharedStrings)
+  $map = @{}
+  if ([string]::IsNullOrEmpty($Sheet.Part)) { return $map }
+  $text = Read-ZipEntryText -Zip $Zip -EntryName $Sheet.Part
+  if ($null -eq $text) { return $map }
+  $doc = New-XmlDoc -Text $text
+  $ns = New-NsManager -Doc $doc -Namespaces @{ x = $script:NsMain }
+  foreach ($c in @($doc.SelectNodes('//x:sheetData/x:row/x:c', $ns))) {
+    $ref = $c.GetAttribute('r')
+    if ([string]::IsNullOrEmpty($ref)) { continue }
+    if ($null -ne $c.SelectSingleNode('x:f', $ns)) { $map[$ref] = [pscustomobject]@{ Kind = 'Formula'; Text = $null }; continue }
+    $t = $c.GetAttribute('t')
+    $vNode = $c.SelectSingleNode('x:v', $ns)
+    if ($t -eq 'e') { $map[$ref] = [pscustomobject]@{ Kind = 'Formula'; Text = $null }; continue }
+    if ($t -eq 'b') { $map[$ref] = [pscustomobject]@{ Kind = 'Boolean'; Text = $null }; continue }
+    if ($t -eq 's' -or $t -eq 'str' -or $t -eq 'inlineStr') {
+      $display = Get-CellDisplayText -Cell $c -Type $t -VNode $vNode -Ns $ns -SharedStrings $SharedStrings
+      $map[$ref] = [pscustomobject]@{ Kind = 'Text'; Text = $display }
+      continue
+    }
+    if ($null -eq $vNode -or [string]::IsNullOrEmpty($vNode.InnerText)) { continue }   # blank - simply absent from the map
+    $map[$ref] = [pscustomobject]@{ Kind = 'Numeric'; Text = $null }
+  }
+  return $map
+}
+
+function Get-NumericOperandIssues {
+  param($Zip, [array] $SheetMap)
+  $issues = @()
+  $sharedStrings = Get-SharedStrings -Zip $Zip
+  $classCache = @{}
+
+  foreach ($sheet in $SheetMap) {
+    if ([string]::IsNullOrEmpty($sheet.Part)) { continue }
+    $text = Read-ZipEntryText -Zip $Zip -EntryName $sheet.Part
+    if ($null -eq $text) { continue }
+    if ($text.IndexOf('<f') -lt 0 -or $text.IndexOfAny([char[]] '+-*/^') -lt 0) { continue }   # fast skip
+    $doc = New-XmlDoc -Text $text
+    $ns = New-NsManager -Doc $doc -Namespaces @{ x = $script:NsMain }
+    foreach ($fNode in @($doc.SelectNodes('//x:sheetData/x:row/x:c/x:f', $ns))) {
+      $formulaText = $fNode.InnerText
+      if ([string]::IsNullOrEmpty($formulaText)) { continue }   # e.g. non-master shared formula
+      $noStr = $script:StringLiteralRegex.Replace($formulaText, '')
+      do { $prev = $noStr; $noStr = $script:BracketSpanRegex.Replace($noStr, '') } while ($noStr -ne $prev)
+      if ($noStr.IndexOfAny([char[]] '+-*/^') -lt 0) { continue }
+
+      $cellRef = $fNode.ParentNode.GetAttribute('r')
+      $seen = New-Object 'System.Collections.Generic.HashSet[string]'
+      foreach ($m in $script:ArithOperandRegex.Matches($noStr)) {
+        if (-not (Test-ArithOperatorAdjacent -Text $noStr -Start $m.Index -End ($m.Index + $m.Length))) { continue }
+
+        $refSheetName = if ($m.Groups['sheet'].Success) { $m.Groups['sheet'].Value.Trim("'") -replace "''", "'" } else { $sheet.Name }
+        $addr = $m.Groups['col'].Value.ToUpperInvariant() + $m.Groups['row'].Value
+
+        if (-not $classCache.ContainsKey($refSheetName)) {
+          $refSheetInfo = $SheetMap | Where-Object { $_.Name -eq $refSheetName } | Select-Object -First 1
+          if ($null -eq $refSheetInfo) { $classCache[$refSheetName] = $null }
+          else { $classCache[$refSheetName] = Build-CellClassificationMap -Zip $Zip -Sheet $refSheetInfo -SharedStrings $sharedStrings }
+        }
+        $map = $classCache[$refSheetName]
+        if ($null -eq $map) { continue }   # unresolved sheet (external ref) - not this check's job
+
+        $cls = if ($map.ContainsKey($addr)) { $map[$addr] } else { [pscustomobject]@{ Kind = 'Blank'; Text = $null } }
+        if ($cls.Kind -ne 'Text' -and $cls.Kind -ne 'Blank') { continue }
+
+        $refLabel = if ($refSheetName -eq $sheet.Name) { $addr } else { "'$refSheetName'!$addr" }
+        if (-not $seen.Add("$cellRef|$refLabel")) { continue }   # same operand hit twice in one formula (e.g. A1*A1)
+
+        $detail = if ($cls.Kind -eq 'Text') { 'holds text "{0}"' -f $cls.Text } else { 'is blank' }
+        $issues += [pscustomobject]@{
+          Sheet = $sheet.Name; Cell = $cellRef; RefCell = $refLabel; Detail = $detail; Formula = '=' + $formulaText
+        }
+      }
+    }
+  }
+  return $issues
+}
+
+# ---------------------------------------------------------------------------
 # Report a capped list.
 # ---------------------------------------------------------------------------
 function Write-Capped {
@@ -790,11 +941,11 @@ if (@($workbooks).Count -eq 0) { Write-Host 'No workbooks found to scan.'; retur
 
 Write-Host ("Scanning {0} workbook(s) for errors (read-only)..." -f @($workbooks).Count)
 
-$grand = @{ cell = 0; name = 0; link = 0; sheet = 0; sum = 0; marked = 0; hiddenCached = 0; wbWithIssues = 0 }
+$grand = @{ cell = 0; name = 0; link = 0; sheet = 0; sum = 0; marked = 0; shift = 0; hiddenCached = 0; wbWithIssues = 0 }
 
 foreach ($path in $workbooks) {
   $leaf = Split-Path $path -Leaf
-  $cellErrors = @(); $nameErrors = @(); $extLinks = @(); $sumMismatches = @(); $sumMarked = 0; $missingSheetRefs = @(); $fullCalcOnLoad = $false
+  $cellErrors = @(); $nameErrors = @(); $extLinks = @(); $sumMismatches = @(); $sumMarked = 0; $missingSheetRefs = @(); $numericOperandIssues = @(); $fullCalcOnLoad = $false
   try {
     $zip = [System.IO.Compression.ZipFile]::Open($path, [System.IO.Compression.ZipArchiveMode]::Read)
     try {
@@ -808,6 +959,9 @@ foreach ($path in $workbooks) {
         $sumResult     = Get-SumRangeMismatches -Zip $zip -SheetMap $sheetMap
         $sumMismatches = @($sumResult.Issues)
         $sumMarked     = $sumResult.Marked
+      }
+      if (-not $SkipNumericOperandCheck) {
+        $numericOperandIssues = @(Get-NumericOperandIssues -Zip $zip -SheetMap $sheetMap)
       }
     } finally { $zip.Dispose() }
   } catch {
@@ -825,7 +979,7 @@ foreach ($path in $workbooks) {
   $shownCellErrors = @(if ($fullCalcOnLoad -and -not $IncludeCachedErrors) { $cellErrors | Where-Object { -not $_.IsCached } } else { $cellErrors })
   $hiddenCached = @($cellErrors).Count - $shownCellErrors.Count
   $grand.hiddenCached += $hiddenCached
-  $total = $shownCellErrors.Count + $nameErrors.Count + $extLinks.Count + $missingSheetRefs.Count + $sumMismatches.Count
+  $total = $shownCellErrors.Count + $nameErrors.Count + $extLinks.Count + $missingSheetRefs.Count + $sumMismatches.Count + $numericOperandIssues.Count
   if ($total -eq 0) { continue }
   $grand.wbWithIssues++
 
@@ -891,6 +1045,15 @@ foreach ($path in $workbooks) {
       Write-Warning ("  '{0}' has not been recalculated since building (fullCalcOnLoad=1). SUM range mismatches above may be false positives from stale cached values - open in Excel with the Excel Labs add-in, force a full recalc, and save, then re-run find-errors." -f $leaf)
     }
   }
+
+  if ($numericOperandIssues.Count -gt 0) {
+    $grand.shift += $numericOperandIssues.Count
+    Write-Host ("  Numeric-operand type mismatches ({0}):" -f $numericOperandIssues.Count) -ForegroundColor Magenta
+    Write-Capped -Items $numericOperandIssues -Max $Max -Format {
+      param($s)
+      "'{0}'!{1}  operand {2} {3}   {4}" -f $s.Sheet, $s.Cell, $s.RefCell, $s.Detail, $s.Formula
+    }
+  }
 }
 
 Write-Host ''
@@ -898,8 +1061,8 @@ Write-Host ('=' * 78)
 if ($grand.wbWithIssues -eq 0) {
   Write-Host ("CLEAN: no errors found in {0} workbook(s)." -f @($workbooks).Count) -ForegroundColor Green
 } else {
-  Write-Host ("TOTAL: {0} cell error(s), {1} broken name(s), {2} external link(s), {3} missing-sheet ref(s), {4} SUM range mismatch(es) across {5} of {6} workbook(s)." -f `
-    $grand.cell, $grand.name, $grand.link, $grand.sheet, $grand.sum, $grand.wbWithIssues, @($workbooks).Count)
+  Write-Host ("TOTAL: {0} cell error(s), {1} broken name(s), {2} external link(s), {3} missing-sheet ref(s), {4} SUM range mismatch(es), {5} numeric-operand mismatch(es) across {6} of {7} workbook(s)." -f `
+    $grand.cell, $grand.name, $grand.link, $grand.sheet, $grand.sum, $grand.shift, $grand.wbWithIssues, @($workbooks).Count)
 }
 if ($grand.marked -gt 0) {
   Write-Host ("       ({0} SUM formula(s) marked intentional via N(`"Partial...`") across all scanned workbooks)" -f $grand.marked) -ForegroundColor DarkGray

@@ -125,6 +125,51 @@ build-scope3-excel.md "Critical lesson"). find-excel-errors.ps1 now
 Write-Warnings when a fullCalcOnLoad workbook has [sum] mismatches, reminding to
 recalc+save and re-run before trusting the results.
 
+[shift] NEW CATEGORY - numeric-operand type mismatch (2026-08): hunts the
+"formula was copied/pasted and a relative reference landed on the wrong cell"
+bug. `Get-NumericOperandIssues` flags a cell used as a direct operand of an
+arithmetic operator (+ - * / ^) whose contents is TEXT or BLANK instead of a
+number/formula. Design decisions (confirmed with user via AskUserQuestion):
+- Scope = direct arithmetic-operator operands ONLY, not function-call
+  arguments (SUM(A1), ROUND(A1,2) etc. are out of scope - too many functions
+  are mixed-type to do reliably, e.g. IF/XLOOKUP/CONCATENATE).
+- Blank IS flagged (not just text) - user's explicit choice despite blank
+  being common/intentional (blank = 0 in Excel arithmetic), accepting the
+  noise tradeoff.
+- Only PLAIN A1-style refs are examined - never named ranges (X_Cell_*,
+  Result_*, VEERG_*, Table_*). This isn't a shortcut, it's the actual point:
+  a named reference is immune to copy-paste reference drift since it doesn't
+  move when a formula is pasted elsewhere, so it's assumed correct by design,
+  not merely unchecked.
+- A referenced cell that itself has a `<f>` (any formula, regardless of
+  current cached type/value/error) is always trusted, never flagged - "not a
+  number or another formula" per the original ask. A shared-formula follower
+  with an empty `<f t="shared" si="N"/>` still counts as "has a formula" here.
+
+FALSE POSITIVE caught + fixed before shipping: `Table_GWPData[CO2-e factor]`
+- the regex matched "CO2" inside the structured-table column name as column
+"CO" row 2, and the following literal "-" (from "CO2-e factor") looked like
+an adjacent minus operator. FIX: strip ALL `[...]` bracketed spans (not just
+`"..."` string literals) before scanning, repeated to peel nested spans
+(`Table[[#Headers],[Col]]`) from the inside out - `$script:BracketSpanRegex`.
+Column/argument names inside brackets are free text and can contain almost
+anything, so nothing bracketed should ever be scanned for cell refs.
+
+Verified full-suite run: 32 hits across 3 of 26 workbooks (13_Scope3_WIP_v14,
+Enterprise_CroppingGrains, Enterprise_PastureBeef), two flavours -
+(a) genuine bug: CroppingGrains `'5.1.1.1-2 Inorganic fert N2O'!Q12
+=O12*P12` where P12 holds text "Grains" (a category label multiplied
+directly - the kind of thing this check exists for); (b) lower-signal noise:
+`'15 Scope 3'!K507..K514 =...(E507,IF(J507="kg / amount unit",
+I507*10^-3, I507))` where I507:I514 are blank optional-table rows in a
+fixed-length "OtherPurchasedGoodsAndServices" input table (same template
+formula copied down further than actual data rows) - recurs identically in
+the raw Scope3 module and both enterprises that import it. Blank-flagging
+was a deliberate user choice knowing this tradeoff; if this specific
+recurring pattern turns out to dominate the noise floor in practice, revisit
+rather than adding a per-cell marker (user has separately said they dislike
+that workaround for [sum] and would rather fix detection).
+
 PS5.1 gotchas hit while building it:
 - ZipArchiveMode lives in System.IO.Compression; ZipFile in
   System.IO.Compression.FileSystem — Add-Type BOTH assemblies.

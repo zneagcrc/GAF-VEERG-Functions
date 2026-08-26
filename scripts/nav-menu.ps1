@@ -149,10 +149,36 @@ function Set-NavMenu {
     }
 
     # Freeze column A (the nav menu) so it stays visible when the user scrolls.
+    # Setting `FreezePanes = $true` alone is NOT purely "freeze at the current
+    # selection": confirmed via instrumented build that on some sheets (large
+    # data tables, likely ones containing an Excel Table object) it ignores a
+    # freshly, correctly selected B1 and instead snaps to a per-sheet "smart"
+    # split position (observed reproducibly: SplitColumn=6/SplitRow=17 on
+    # three Dairy manure calc sheets, 8/17 on Constants - Ag Residue - same
+    # exact values on repeated builds, so not a timing race either; nothing
+    # in any source workbook carries a pane, so it isn't inherited). FIX:
+    # don't rely on ActiveCell position at all - set SplitColumn/SplitRow
+    # explicitly to the desired column-A-only position BEFORE enabling
+    # FreezePanes, which bypasses whatever "smart" positioning Excel applies.
     try {
       $ws.Activate()
+      $win = $Target.Windows.Item(1)
+      if ($win.FreezePanes) { $win.FreezePanes = $false }
+      if ($win.Split) { $win.Split = $false }
+      # A sheet whose ORIGINAL scroll position was inherited scrolled well
+      # past column A/B (e.g. topLeftCell="B53" in its source) can carry that
+      # scroll offset INTO the new pane's initial view even after a correct
+      # freeze is established, landing on topLeftCell="C1" instead of "B1"
+      # like every freshly-frozen sheet gets - three different post-freeze
+      # resets (Window.ScrollColumn, re-Select, Pane.ScrollColumn) all failed
+      # to move it once the split existed. Reset the scroll position to A1
+      # FIRST, while still unsplit, so there's no scrolled-away state left to
+      # carry forward into the pane at all.
+      try { $win.ScrollColumn = 1; $win.ScrollRow = 1 } catch { }
       $ws.Range('B1').Select() | Out-Null
-      $Target.Windows.Item(1).FreezePanes = $true
+      $win.SplitColumn = 1
+      $win.SplitRow = 0
+      $win.FreezePanes = $true
     } catch { Write-Warning ("Menu: could not freeze column A on '{0}': {1}" -f $sn, $_.Exception.Message) }
 
     $updated++
