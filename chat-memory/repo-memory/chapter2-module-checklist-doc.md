@@ -59,6 +59,22 @@ per production system).
   gives no positive evidence for or against it beyond simply not listing
   15.14 as a distinct row.
 
+- Poultry (2026-08): Scope 1 = Manure Management 4.6, Transport Fuel 8.1,
+  Stationary Fuel 8.2, Solid Waste Treatment 10.1 - NO Enteric Fermentation
+  row at all (poultry has no enteric methane in VEERG's methodology, unlike
+  every mammalian livestock enterprise - confirmed absent from both the
+  table AND the module registry, which has no Enteric_Poultry entry).
+  Scope 2 = Purchased Electricity 14.1. Scope 3 = identical set to Swine's:
+  Purchased Livestock 15.1, Purchased Feed 15.2, Purchased Services/
+  Contractors 15.7, Other Purchased Goods and Services 15.10, Upstream
+  Emission from Fuel 15.11, Upstream Emissions of Purchased Electricity
+  15.12, Management of Waste 15.13. NO Fertiliser (Ch 5) or Agricultural
+  Residue (Ch 6) in the table, despite the prose sentence mentioning
+  "Chapter 6 – Sections 6.1 and 6.2" - same prose-vs-table mismatch pattern
+  as Swine, table wins. `Enterprises/Enterprise_Poultry.json` drafted from
+  this (2026-08) - modeled directly on Swine's config minus the Enteric
+  module, same open question about Input - Freight left unresolved.
+
 - Beef pasture/range/paddock and Dairy: NOT yet re-verified against their
   own Module Map tables (only checked via the prose sentence, which is now
   known to be unreliable) - they happen to match their existing working

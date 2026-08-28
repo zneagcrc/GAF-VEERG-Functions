@@ -1,5 +1,25 @@
 # Enterprise template authoring (manual process) + list-enterprise-results.ps1
 
+## list-enterprise-results.ps1 does NOT respect `include` subsetting (2026-08)
+Found while drafting `Enterprise_Poultry.json`: its `modules[]` entry for
+Fertiliser deliberately imports ONLY `Constants - Fertiliser` (a dependency
+of the Scope3 "manure sent off site" calc), not any of Fertiliser's own
+calculation sheets - yet `list-enterprise-results.ps1 -EnterpriseId Poultry`
+still printed a full "Fertiliser and lime" section with all of Fertiliser's
+Method1/Method2 results (5.1.1.1-2, 5.2.1.1-2, 5.3.1.1-2, etc). The script
+has no awareness of a module selection's `include` filter at all (grepped
+the script - no reference to "Include" anywhere) - it lists every result
+name found in a SELECTED module's source workbook unconditionally, as if
+the whole module were imported. Not a bug exactly (documented nowhere as
+respecting `include`, and fixing it would need duplicating
+`build-enterprise-excel.ps1`'s subsetting logic) but a real trap when
+copying its output into a hand-authored Results sheet: a constants-only
+module's calc-sheet results will be listed even though they will NOT exist
+in the actual built enterprise workbook. Manually skip any section for a
+module whose `include` doesn't cover `calculation` when using this
+script's output - same caveat applies to any future enterprise with a
+constants-only (or narrowly-subsetted) module dependency, not just Poultry.
+
 ## Result names aren't always Method1/Method2 (2026-08)
 `list-enterprise-results.ps1` originally matched only `_Result_Method[12]`
 suffixes. The Fuel module (`8_Fuel_WIP_v05.xlsx`, also embedded inside
