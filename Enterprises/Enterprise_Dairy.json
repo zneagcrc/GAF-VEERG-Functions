@@ -67,6 +67,7 @@
     },
     "Electricity_Scope2",
     "Fuel",
+    "Refrigerants",
     "SolidWaste",
     {
       "id": "AgriculturalResidue",
@@ -143,6 +144,7 @@
         "6.3.1.1-2 Leach runoff pasture": "6.3.1.1-2 Leach & runoff (pasture)",
         "8.1.1.1-2 Transport fuel": "8.1.1.1-2 Transport fuel",
         "8.2.1.1-2 Stationary fuel": "8.2.1.1-2 Stationary fuel",
+        "9.1.1.1-2 Refrigerant use": "9.1.1.1-2 Refrigerant use",
         "10.1.1-2 Solid waste treatment": "10.1.1.1-2 Solid waste",
         "14.1.1-2 Purchased electricity": "14.1.1-2 Purchased electricity",
         "15 Scope 3": "15 Scope 3",

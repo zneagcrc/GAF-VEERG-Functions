@@ -260,8 +260,15 @@ foreach ($m in @($config.modules)) {
 # Per module: resolve workbook, read result names, group by (sheet,base),
 # read the unit from the sheet cell immediately right of the result cell.
 # ---------------------------------------------------------------------------
-$resultNameRegex = [regex] '^(?<base>VEERG_.+)_Result_Method(?<method>[12])$'
+# Suffix is usually Method1/Method2 (two alternate calculation methodologies
+# for the same result), but at least one module (Fuel) instead publishes one
+# result PER GAS from a single calculation (_Result_CO2/_Result_CH4/
+# _Result_N2O/_Result_Scope3, no Method1/Method2 concept at all) - so the
+# suffix is captured generically and the two shapes are rendered differently
+# below rather than assuming every result is a Method1/Method2 pair.
+$resultNameRegex = [regex] '^(?<base>VEERG_.+)_Result_(?<suffix>[A-Za-z0-9]+)$'
 $refersToRegex   = [regex] "^'(?<sheet>[^']+)'!(?<cell>.+)$"
+$methodOnlySet = @{ 'Method1' = $true; 'Method2' = $true }
 
 Write-Host ("Enterprise : {0}" -f $EnterpriseId)
 Write-Host ("Config     : {0}" -f $configPath)
@@ -277,7 +284,7 @@ foreach ($sel in $selectedModules) {
   $wbPath = Resolve-SourceWorkbook -ExcelDir $excelDir -HintName ([string] $mod.sourceWorkbook)
   $ctx = Open-WorkbookContext -XlsxPath $wbPath
   try {
-    # sheet -> list of {Base, Method1, Method2, Cell1, Cell2}, in first-seen order.
+    # sheet -> base -> ordered{ suffix -> {Name; Cell} }, all in first-seen order.
     $bySheet = [ordered]@{}
     foreach ($n in $ctx.DefinedNames) {
       $m = $resultNameRegex.Match($n.Name)
@@ -288,13 +295,10 @@ foreach ($sel in $selectedModules) {
       if ($calcSheets -notcontains $sheet) { continue }   # not one of this module's selected calc sheets
 
       $base = $m.Groups['base'].Value
-      $method = $m.Groups['method'].Value
+      $suffix = $m.Groups['suffix'].Value
       if (-not $bySheet.Contains($sheet)) { $bySheet[$sheet] = [ordered]@{} }
-      if (-not $bySheet[$sheet].Contains($base)) {
-        $bySheet[$sheet][$base] = [pscustomobject]@{ Base = $base; Method1 = $null; Method2 = $null; Cell1 = $null; Cell2 = $null }
-      }
-      if ($method -eq '1') { $bySheet[$sheet][$base].Method1 = $n.Name; $bySheet[$sheet][$base].Cell1 = $rt.Groups['cell'].Value }
-      else                 { $bySheet[$sheet][$base].Method2 = $n.Name; $bySheet[$sheet][$base].Cell2 = $rt.Groups['cell'].Value }
+      if (-not $bySheet[$sheet].Contains($base)) { $bySheet[$sheet][$base] = [ordered]@{} }
+      $bySheet[$sheet][$base][$suffix] = [pscustomobject]@{ Name = $n.Name; Cell = $rt.Groups['cell'].Value }
     }
 
     if ($bySheet.Count -eq 0) { continue }
@@ -303,15 +307,29 @@ foreach ($sel in $selectedModules) {
     Write-Host ("=== {0}  ({1}) ===" -f $moduleLabel, (Split-Path $wbPath -Leaf))
     foreach ($sheet in $calcSheets) {
       if (-not $bySheet.Contains($sheet)) { continue }
-      foreach ($entry in $bySheet[$sheet].Values) {
-        $refCell = if ($entry.Cell1) { $entry.Cell1 } else { $entry.Cell2 }
-        $unit = Get-CellUnitText -Ctx $ctx -SheetName $sheet -CellRef $refCell
+      foreach ($base in $bySheet[$sheet].Keys) {
+        $suffixes = $bySheet[$sheet][$base]
+        $firstCell = ($suffixes.Values | Select-Object -First 1).Cell
+        $unit = Get-CellUnitText -Ctx $ctx -SheetName $sheet -CellRef $firstCell
         if ([string]::IsNullOrWhiteSpace($unit)) { $unit = '?' }
         Write-Host ("  {0}   [{1}]" -f $sheet, $unit)
-        if ($entry.Method1) { Write-Host ("    Method 1: ={0}   ({1})" -f $entry.Method1, $entry.Cell1) }
-        else                { Write-Host ("    Method 1: (none)") }
-        if ($entry.Method2) { Write-Host ("    Method 2: ={0}   ({1})" -f $entry.Method2, $entry.Cell2) }
-        else                { Write-Host ("    Method 2: (none)") }
+
+        $isMethodPair = $true
+        foreach ($k in $suffixes.Keys) { if (-not $methodOnlySet.ContainsKey($k)) { $isMethodPair = $false; break } }
+        if ($isMethodPair) {
+          # Familiar fixed two-slot rendering, "(none)" when truly absent.
+          foreach ($label in @('Method1', 'Method2')) {
+            $shown = if ($label -eq 'Method1') { 'Method 1' } else { 'Method 2' }
+            if ($suffixes.Contains($label)) { Write-Host ("    {0}: ={1}   ({2})" -f $shown, $suffixes[$label].Name, $suffixes[$label].Cell) }
+            else { Write-Host ("    {0}: (none)" -f $shown) }
+          }
+        } else {
+          # Per-gas (or other non-Method) shape: list whatever is present,
+          # no "(none)" - there's no fixed expected set to compare against.
+          foreach ($k in $suffixes.Keys) {
+            Write-Host ("    {0}: ={1}   ({2})" -f $k, $suffixes[$k].Name, $suffixes[$k].Cell)
+          }
+        }
       }
     }
     Write-Host ''

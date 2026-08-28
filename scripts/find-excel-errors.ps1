@@ -49,14 +49,120 @@
                 Advisory only (heuristic, not included in -FailOnError).
 
     [shift]     A cell used as a direct operand of an arithmetic operator
-                (+ - * / ^) holds text, or is blank, instead of a number or a
-                formula. Catches the classic "formula was copied/pasted and a
-                relative reference landed on the wrong cell" mistake. Only
-                plain A1-style references are examined - a named reference
+                (+ - * / ^) holds text instead of a number or a formula.
+                Catches the classic "formula was copied/pasted and a relative
+                reference landed on the wrong cell" mistake. Only plain
+                A1-style references are examined - a named reference
                 (X_Cell_*, Result_*, VEERG_*, Table_*) is assumed correct and
                 is never flagged, since it doesn't move when a formula is
-                pasted elsewhere and so isn't at risk of this bug. Advisory
+                pasted elsewhere and so isn't at risk of this bug. Blank
+                operands are NOT flagged (dropped 2026-08 - too many false
+                positives from formulas that legitimately reference a
+                not-yet-filled-in user input cell by plain address). Advisory
                 only (heuristic, not included in -FailOnError).
+
+    [series]    OFF BY DEFAULT - pass -IncludeSeriesCheck to run it. A
+                function repeated across a run of 4+ adjacent cells in the
+                same row/column (identical formula shape once cell refs are
+                stripped out - the same shape Excel groups as "copied
+                formula") should have each plain-reference operand shift in
+                lockstep with the run, one cell per step, UNLESS it's a
+                genuine shared single value. An operand that is FULLY
+                $-anchored (both column AND row absolute, e.g. $D$63) in
+                EVERY cell of the run is checked for NEITHER sub-case below
+                - Excel never shifts a fully-absolute reference when a
+                formula is filled/copied, so if its address varies between
+                cells anyway, each cell's reference was necessarily typed
+                or edited individually (e.g. manually picking specific rows
+                out of a larger source table, in whatever order they're
+                needed) - categorically not a fill/copy drift bug, however
+                irregular the jumps look. Two sub-cases, both advisory:
+                  Frozen - an operand lands on the exact same cell in every
+                  formula in the run. A relative fill only auto-shifts a
+                  reference along the run's OWN axis (column for a row-run,
+                  row for a column-run), so $-anchoring JUST that one axis
+                  (e.g. E$60 in a column-run - row-anchored, column not) is
+                  already the complete, correct idiom for a fixed lookup
+                  reference; the other axis's $ status is irrelevant and not
+                  reported on. NOT reported when the axis that varies IS
+                  $-anchored (regardless of the other axis). IS reported
+                  when the axis that varies has NO $ at all - staying fixed
+                  despite nothing anchoring the axis that should have moved
+                  it is the genuinely ambiguous case worth a human look.
+                  ALSO not reported when the un-anchored target cell falls
+                  inside a "*_Arguments(" formula's dynamic-array spill (a
+                  VEERG equation's argument-metadata call, e.g.
+                  CHOOSECOLS(Module.Func_Arguments(),3,4) showing a unit
+                  like "kg/head" next to a data range) - the spill's
+                  non-anchor cells carry no formula of their own to trust,
+                  but every row of a data block legitimately references the
+                  same shared unit/label cell without $, so this is not a
+                  copy-paste bug either. ALSO not reported (as either a run
+                  member OR a referenced target) when a cell carries one of
+                  a small set of named CELL STYLES VEERG authors apply to
+                  mark non-data documentation cells - currently "Unit" /
+                  "Unit no indent" (a unit label beside a data range) and
+                  "Arguments" / "Arguments hyperlink" (equation
+                  argument-metadata cells, including a HYPERLINK(...) link
+                  to a source table, e.g. =HYPERLINK(Common_InputFunctions.
+                  Utility_SourceHyperlink($D$77),$D$77) - repeated down a
+                  column, these are documentation links, not a data
+                  series). HYPERLINK(...) formulas are additionally
+                  excluded by name regardless of style, as a second line of
+                  defense.
+                  Drift - an operand's step is an ISOLATED anomaly: it
+                  differs from both neighbours and does not repeat for at
+                  least $script:MinDriftSegmentLength consecutive steps of
+                  its own - the classic "pasted one too many/too few times"
+                  mistake, where exactly one cell has a wrong offset. A step
+                  that DOES repeat for 2+ consecutive cells is treated as its
+                  own legitimate sub-pattern rather than flagged - this is
+                  what lets a genuine multi-range CONSOLIDATION (several
+                  source ranges concatenated into one target range, each
+                  internally consistent but discontinuous at the boundary)
+                  pass cleanly instead of every boundary looking like drift.
+                  A single-step (isolated) boundary is ALSO not reported
+                  when the two cells straddling it fall inside two
+                  DIFFERENT named ranges (e.g. crossing from one source
+                  table like M1_Table_M_j_m5_T1 into another,
+                  M1_Table_M_j_m_T2) - a real, deliberate cross-table
+                  boundary, structurally indistinguishable from a one-cell
+                  mistake by address alone, but recognizable via workbook
+                  defined names. ALSO not reported when the isolated step
+                  sits next to a well-established segment (>= $script:
+                  MinBoundaryFlankRows rows/cols) - a within-table sub-group
+                  boundary (e.g. two MMS-type row groups, like "Pasture
+                  range and paddock" then "Anaerobic lagoon", or a single-
+                  row group like "Solid storage", consolidated into ONE
+                  named table) where no second name exists to check
+                  against. For a COLUMN-run (varying by row) only ONE side
+                  needs to be well-established, since a genuine sub-group
+                  can be as short as one row with no internal pattern of
+                  its own; a ROW-run (varying by column) still requires
+                  BOTH sides. FINALLY, an operand is not checked for drift
+                  AT ALL when its WHOLE step sequence is fully explained by
+                  a repeating PERIOD (e.g. frozen for 2 rows, steps forward
+                  once, repeating throughout the table - a fixed-size
+                  row-group structure, like 3 rows per swine class sharing
+                  one lookup row) - every single step must fit the cycle
+                  exactly, so one real mistake anywhere still falls through
+                  to the other checks. For an IRREGULARLY-sized grouping
+                  (e.g. row-groups of 3, 4, 3, 3, 3, 4 - no fixed period),
+                  a delta that recurs $script:MinDriftRepeatCount+ times
+                  ANYWHERE in the run (even scattered, never twice
+                  consecutively) is ALSO trusted - 3+ independent
+                  occurrences of the identical wrong offset is not
+                  something a real copy-paste mistake produces by chance.
+                  Only the isolated cell(s) that remain after all five
+                  checks are reported, not the whole run.
+                Only plain A1-style references are examined, same as [shift]
+                - named references are immune to this bug by construction.
+                Cells whose formula text is inherited from an XLSX
+                shared-formula master (no text of its own) are skipped -
+                Excel computes those with a guaranteed-consistent relative
+                offset, so they cannot exhibit this bug; only
+                independently-stored formula text is at risk. Advisory only
+                (heuristic, not included in -FailOnError).
 
   DRY / read-only ALWAYS: nothing is ever written. Use it after a build (e.g.
   `npm run build-enterprise`) to confirm the workbooks are clean.
@@ -90,6 +196,12 @@
 .PARAMETER SkipNumericOperandCheck
   Skip the [shift] numeric-operand-type heuristic (see DESCRIPTION).
 
+.PARAMETER IncludeSeriesCheck
+  Also run the [series] range-follow consistency heuristic (see DESCRIPTION).
+  OFF by default - even after extensive false-positive tuning, genuine
+  remaining hits are rare and the ones that do turn up tend to need a human
+  judgment call, so it's opt-in rather than part of the default scan.
+
 .PARAMETER IncludeCachedErrors
   List cached cell errors (t="e") even in a fullCalcOnLoad workbook, where they
   are provisional and hidden by default. Use it to hunt a genuine persistent
@@ -102,6 +214,7 @@
   npm run find-errors -- -Max 0 -FailOnError
   npm run find-errors -- -IncludeLibraryFunctions
   npm run find-errors -- -WorkbookPath .\Excel\Enterprises\Enterprise_CroppingGrains_WIP_v01.xlsx -IncludeCachedErrors
+  npm run find-errors -- -IncludeSeriesCheck
 #>
 param(
   [string] $RepoRoot = (Split-Path $PSScriptRoot -Parent),
@@ -110,6 +223,7 @@ param(
   [switch] $IncludeLibraryFunctions,
   [switch] $SkipSumCheck,
   [switch] $SkipNumericOperandCheck,
+  [switch] $IncludeSeriesCheck,
   [switch] $IncludeCachedErrors,
   [switch] $FailOnError
 )
@@ -816,8 +930,10 @@ function Get-SumRangeMismatches {
 # Hunts for the classic "formula was copied/pasted and a relative reference
 # landed on the wrong cell" mistake: a cell used as a direct operand of an
 # arithmetic operator (+ - * / ^) should hold a number, or a formula (trusted
-# to produce one) - not hard-coded text, and not be blank. Only plain A1-style
-# references are examined (see $script:ArithOperandRegex) - a named reference
+# to produce one) - not hard-coded text. Blank is NOT flagged (dropped 2026-08 -
+# a plain-address reference to a not-yet-filled user input cell is legitimately
+# blank, and that dwarfed the genuine drifted-reference signal in practice).
+# Only plain A1-style references are examined (see $script:ArithOperandRegex) - a named reference
 # (X_Cell_*, Result_*, VEERG_*, Table_*) never has that shape and is immune to
 # this bug in the first place, since it doesn't move when a formula is pasted
 # elsewhere; nothing here second-guesses a named reference.
@@ -907,19 +1023,651 @@ function Get-NumericOperandIssues {
         $map = $classCache[$refSheetName]
         if ($null -eq $map) { continue }   # unresolved sheet (external ref) - not this check's job
 
-        $cls = if ($map.ContainsKey($addr)) { $map[$addr] } else { [pscustomobject]@{ Kind = 'Blank'; Text = $null } }
-        if ($cls.Kind -ne 'Text' -and $cls.Kind -ne 'Blank') { continue }
+        if (-not $map.ContainsKey($addr)) { continue }   # blank - not flagged, see comment above
+        $cls = $map[$addr]
+        if ($cls.Kind -ne 'Text') { continue }
 
         $refLabel = if ($refSheetName -eq $sheet.Name) { $addr } else { "'$refSheetName'!$addr" }
         if (-not $seen.Add("$cellRef|$refLabel")) { continue }   # same operand hit twice in one formula (e.g. A1*A1)
 
-        $detail = if ($cls.Kind -eq 'Text') { 'holds text "{0}"' -f $cls.Text } else { 'is blank' }
+        $detail = 'holds text "{0}"' -f $cls.Text
         $issues += [pscustomobject]@{
           Sheet = $sheet.Name; Cell = $cellRef; RefCell = $refLabel; Detail = $detail; Formula = '=' + $formulaText
         }
       }
     }
   }
+  return $issues
+}
+
+# ---------------------------------------------------------------------------
+# [series] Range-follow consistency check.
+#
+# A function repeated across a run of adjacent cells in the same row/column
+# (identical formula shape once cell refs are stripped out - the same shape
+# Excel itself groups as "copied formula") should have each plain-reference
+# operand shift in lockstep with the run, one cell per step, UNLESS it is a
+# genuine shared single value. Two sub-cases:
+#   Frozen - an operand lands on the exact SAME cell in every formula in the
+#   run. Reported regardless of $ absolute marking, so a deliberate common
+#   value (e.g. a GWP lookup cell, usually $-anchored) and a reference that
+#   should have moved but got left behind by a copy/paste (usually NOT
+#   $-anchored) both surface for a human to tell apart.
+#   Drift - an operand's step size is NOT consistent across the run (jumps by
+#   2 for one step, lands on the wrong column, etc) - the classic "pasted one
+#   too many/too few times" mistake. Only the cell(s) that break from the
+#   run's majority step are reported, not the whole run.
+# Only plain A1-style references are examined (same regex as [shift]) - a
+# named reference is immune to this bug by construction and is never part of
+# a run's comparison. Cells whose formula text is inherited from an XLSX
+# shared-formula master (t="shared" with no text of its own) are skipped -
+# Excel computes those with a guaranteed-consistent relative offset, so they
+# cannot exhibit this bug in the first place; only independently-stored
+# formula text (typed or pasted into each cell individually) is at risk.
+# ---------------------------------------------------------------------------
+$script:MinSeriesRunLength = 4   # need >=3 pairwise steps for "consistent vs not" to mean anything
+$script:MinDriftSegmentLength = 2   # a step repeated this many times in a row is its own trusted sub-pattern, not a mistake - see Test-SeriesRun's Drift segmentation
+$script:MinBoundaryFlankRows = 4   # both segments (each measured in CELLS = seg.Length + 1, not raw delta-count) flanking an isolated single-step transition must span at least this many rows/cols before the transition itself is trusted as a same-table sub-group boundary (e.g. two MMS-type row groups sharing one named range) rather than a mistake
+$script:MinDriftRepeatCount = 3   # a delta value occurring at least this many times ANYWHERE in a run (even non-consecutively, no fixed period required) is trusted as a deliberate repeating structure rather than a mistake - see Test-SeriesRun's Drift segmentation
+
+function Get-SheetFormulaCells {
+  # One entry per cell with its OWN formula text (skips shared-formula
+  # follower cells - see comment above).
+  param($Zip, $Sheet)
+  $result = New-Object System.Collections.Generic.List[object]
+  if ([string]::IsNullOrEmpty($Sheet.Part)) { return $result }
+  $text = Read-ZipEntryText -Zip $Zip -EntryName $Sheet.Part
+  if ($null -eq $text) { return $result }
+  $doc = New-XmlDoc -Text $text
+  $ns = New-NsManager -Doc $doc -Namespaces @{ x = $script:NsMain }
+  foreach ($c in @($doc.SelectNodes('//x:sheetData/x:row/x:c', $ns))) {
+    $fNode = $c.SelectSingleNode('x:f', $ns)
+    if ($null -eq $fNode) { continue }
+    $formulaText = $fNode.InnerText
+    if ([string]::IsNullOrEmpty($formulaText)) { continue }
+    $ref = $c.GetAttribute('r')
+    if ([string]::IsNullOrEmpty($ref)) { continue }
+    $m = $script:CellRefRegex.Match($ref)
+    if (-not $m.Success) { continue }
+    $result.Add([pscustomobject]@{
+      Col = ConvertFrom-ColumnLetters $m.Groups[1].Value
+      Row = [int] $m.Groups[2].Value
+      Addr = $ref
+      FormulaText = $formulaText
+    })
+  }
+  return $result
+}
+
+function Get-FormulaSkeleton {
+  # Strips string literals + bracketed spans (as [shift] does), then replaces
+  # every plain cell-ref match with a fixed placeholder so two formulas that
+  # differ ONLY in which cells they reference compare as textually equal.
+  # Returns $null when the formula has no plain refs at all (named-range-only
+  # formulas can't exhibit this bug and are never part of a run), OR when the
+  # formula is a HYPERLINK(...) call - a source-table link cell (VEERG's
+  # Common_InputFunctions.Utility_SourceHyperlink convention, styled
+  # "Arguments hyperlink") is documentation, not a data value following a
+  # fill pattern, even when several sit in the same row/column.
+  param([string] $FormulaText)
+  if ($FormulaText.IndexOf('HYPERLINK(', [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { return $null }
+  $noStr = $script:StringLiteralRegex.Replace($FormulaText, '')
+  do { $prev = $noStr; $noStr = $script:BracketSpanRegex.Replace($noStr, '') } while ($noStr -ne $prev)
+  $matches = @($script:ArithOperandRegex.Matches($noStr))
+  if ($matches.Count -eq 0) { return $null }
+  $sb = New-Object System.Text.StringBuilder
+  $refs = New-Object System.Collections.Generic.List[object]
+  $pos = 0
+  foreach ($m in $matches) {
+    [void] $sb.Append($noStr.Substring($pos, $m.Index - $pos))
+    [void] $sb.Append('@REF@')
+    $sheetExplicit = $null
+    if ($m.Groups['sheet'].Success) { $sheetExplicit = $m.Groups['sheet'].Value.Trim("'") -replace "''", "'" }
+    $colGroup = $m.Groups['col']; $rowGroup = $m.Groups['row']
+    $colAbs = ($colGroup.Index -gt 0 -and $noStr[$colGroup.Index - 1] -eq '$')
+    $rowAbs = ($rowGroup.Index -gt 0 -and $noStr[$rowGroup.Index - 1] -eq '$')
+    $refs.Add([pscustomobject]@{
+      SheetExplicit = $sheetExplicit
+      Col = ConvertFrom-ColumnLetters $colGroup.Value
+      Row = [int] $rowGroup.Value
+      ColAbs = $colAbs
+      RowAbs = $rowAbs
+      Addr = $m.Value
+    })
+    $pos = $m.Index + $m.Length
+  }
+  [void] $sb.Append($noStr.Substring($pos))
+  return [pscustomobject]@{ Skeleton = $sb.ToString(); Refs = $refs }
+}
+
+function Expand-CellRange {
+  # "F60:G65" -> every bare A1 address inside it, inclusive. Only ever called
+  # on a dynamic-array spill footprint (a handful of cells), never a data
+  # range, so no size guard is needed.
+  param([string] $RangeAddr)
+  $addrs = New-Object System.Collections.Generic.List[string]
+  $parts = $RangeAddr -split ':'
+  if ($parts.Count -ne 2) { return $addrs }
+  $m1 = $script:CellRefRegex.Match($parts[0]); $m2 = $script:CellRefRegex.Match($parts[1])
+  if (-not $m1.Success -or -not $m2.Success) { return $addrs }
+  $c1 = ConvertFrom-ColumnLetters $m1.Groups[1].Value; $r1 = [int] $m1.Groups[2].Value
+  $c2 = ConvertFrom-ColumnLetters $m2.Groups[1].Value; $r2 = [int] $m2.Groups[2].Value
+  for ($r = $r1; $r -le $r2; $r++) {
+    for ($c = $c1; $c -le $c2; $c++) { [void] $addrs.Add((ConvertTo-ColumnLetters $c) + $r) }
+  }
+  return $addrs
+}
+
+function Get-ArgumentsSpillCells {
+  # Addresses on this sheet populated by a formula whose text calls a
+  # "*_Arguments(" function - either the formula's own cell, or (since a
+  # VEERG *_Arguments() equation returns a metadata array - argument
+  # name/unit/etc, e.g. CHOOSECOLS(Module.Func_Arguments(),3,4)) every cell
+  # in its dynamic-array SPILL footprint. A spill's non-anchor cells carry
+  # no <f> of their own (just a cached <v>), so a plain reference landing on
+  # one of them has no formula to trust - but it's legitimately a shared
+  # unit/label lookup referenced identically by every row of a data block,
+  # not a copy-paste bug, so [series]'s Frozen check treats it like a
+  # deliberate common value.
+  param($Zip, $Sheet)
+  $set = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+  if ([string]::IsNullOrEmpty($Sheet.Part)) { return ,$set }
+  $text = Read-ZipEntryText -Zip $Zip -EntryName $Sheet.Part
+  if ($null -eq $text -or $text.IndexOf('_Arguments(') -lt 0) { return ,$set }
+  $doc = New-XmlDoc -Text $text
+  $ns = New-NsManager -Doc $doc -Namespaces @{ x = $script:NsMain }
+  foreach ($c in @($doc.SelectNodes('//x:sheetData/x:row/x:c', $ns))) {
+    $fNode = $c.SelectSingleNode('x:f', $ns)
+    if ($null -eq $fNode) { continue }
+    $formulaText = $fNode.InnerText
+    if ([string]::IsNullOrEmpty($formulaText) -or $formulaText.IndexOf('_Arguments(') -lt 0) { continue }
+    $ref = $c.GetAttribute('r')
+    if (-not [string]::IsNullOrEmpty($ref)) { [void] $set.Add($ref) }
+    $spillRef = $fNode.GetAttribute('ref')
+    if (-not [string]::IsNullOrEmpty($spillRef) -and $spillRef.Contains(':')) {
+      foreach ($addr in (Expand-CellRange -RangeAddr $spillRef)) { [void] $set.Add($addr) }
+    }
+  }
+  # Comma-operator prefix: a bare `return $set` lets PowerShell auto-enumerate
+  # the HashSet into the output stream; when the caller captures it via simple
+  # assignment ($x = Get-ArgumentsSpillCells ...), an EMPTY set enumerates to
+  # zero output items and $x becomes $null (not an empty HashSet) - the next
+  # `.Contains()` call then throws "cannot call a method on a null-valued
+  # expression". `,$set` forces the whole HashSet through as ONE object.
+  return ,$set
+}
+
+# VEERG authors apply specific NAMED CELL STYLES to mark non-data
+# documentation/metadata cells - "Unit"/"Unit no indent" for a unit label
+# next to a data range, "Arguments"/"Arguments hyperlink" for equation
+# argument-metadata cells (including a HYPERLINK(...) source-table link).
+# [series] excludes any cell carrying one of these styles from range-series
+# checking entirely (as a run member AND as a referenced target), on top of
+# (not instead of) the formula-text heuristics above - the style is the
+# author's own authoritative signal of intent, more robust than inferring it
+# from a specific function name every time a new documentation-cell shape
+# turns up. Extend this list if another such style is found.
+$script:SeriesExcludedStyleNames = @('Unit', 'Unit no indent', 'Arguments', 'Arguments hyperlink')
+
+function Get-CellStyleNameMap {
+  # Workbook-level (not per-sheet): maps a cellXfs INDEX (the value every
+  # cell's `s="N"` attribute references) to the NAMED cell style it's based
+  # on, via xl/styles.xml's standard <cellStyle name=".." xfId="N"/> ->
+  # <cellStyleXfs> position <- <cellXfs><xf xfId="N"/> linkage. A cellXfs
+  # entry with no xfId, or an xfId with no matching named cellStyle (e.g. 0 =
+  # built-in "Normal"), is simply absent from the returned map.
+  param($Zip)
+  $map = @{}
+  $text = Read-ZipEntryText -Zip $Zip -EntryName 'xl/styles.xml'
+  if ($null -eq $text) { return $map }
+  $doc = New-XmlDoc -Text $text
+  $ns = New-NsManager -Doc $doc -Namespaces @{ x = $script:NsMain }
+  $namesByXfId = @{}
+  foreach ($cs in @($doc.SelectNodes('//x:cellStyles/x:cellStyle', $ns))) {
+    $name = $cs.GetAttribute('name'); $xfId = $cs.GetAttribute('xfId')
+    if (-not [string]::IsNullOrEmpty($name) -and -not [string]::IsNullOrEmpty($xfId)) { $namesByXfId[$xfId] = $name }
+  }
+  if ($namesByXfId.Count -eq 0) { return $map }
+  $i = 0
+  foreach ($xf in @($doc.SelectNodes('//x:cellXfs/x:xf', $ns))) {
+    $xfId = $xf.GetAttribute('xfId')
+    if (-not [string]::IsNullOrEmpty($xfId) -and $namesByXfId.ContainsKey($xfId)) { $map[[string] $i] = $namesByXfId[$xfId] }
+    $i++
+  }
+  return $map
+}
+
+function Get-ExcludedStyleCells {
+  # Addresses on this sheet whose applied named style is in
+  # $script:SeriesExcludedStyleNames. Every return uses the `,$set` comma-
+  # operator prefix - see the comment on Get-ArgumentsSpillCells's return for
+  # why a bare `return $set` is unsafe here (an empty HashSet collapses to
+  # $null when the caller captures it via simple assignment).
+  param($Zip, $Sheet, [hashtable] $StyleNameMap)
+  $set = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+  if ($StyleNameMap.Count -eq 0) { return ,$set }
+  if ([string]::IsNullOrEmpty($Sheet.Part)) { return ,$set }
+  $text = Read-ZipEntryText -Zip $Zip -EntryName $Sheet.Part
+  if ($null -eq $text) { return ,$set }
+  $doc = New-XmlDoc -Text $text
+  $ns = New-NsManager -Doc $doc -Namespaces @{ x = $script:NsMain }
+  foreach ($c in @($doc.SelectNodes('//x:sheetData/x:row/x:c', $ns))) {
+    $s = $c.GetAttribute('s')
+    if ([string]::IsNullOrEmpty($s) -or -not $StyleNameMap.ContainsKey($s)) { continue }
+    if ($script:SeriesExcludedStyleNames -contains $StyleNameMap[$s]) {
+      $ref = $c.GetAttribute('r')
+      if (-not [string]::IsNullOrEmpty($ref)) { [void] $set.Add($ref) }
+    }
+  }
+  return ,$set
+}
+
+# Regex for a single-area RefersTo: optional 'Sheet'!/Sheet! qualifier, then
+# a plain cell or A1:B5-style range. Deliberately narrower than
+# $script:RangeArgRegex (which is anchored for a SUM argument) - this one
+# also accepts a BARE single cell (a 1x1 "range"), and is applied to the
+# WHOLE trimmed RefersTo text, not a substring match.
+$script:NamedRangeAreaRegex = [regex]::new(@'
+^(?:(?<sheet>'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_.]*)!)?
+\$?(?<c1>[A-Za-z]{1,3})\$?(?<r1>[0-9]+)
+(?::\$?(?<c2>[A-Za-z]{1,3})\$?(?<r2>[0-9]+))?$
+'@, 'IgnorePatternWhitespace')
+
+function Get-NamedRangeAreas {
+  # Every defined name (workbook- or sheet-scoped) whose RefersTo is a
+  # SIMPLE, single-rectangle A1 reference (no error token, no multi-area
+  # union, no structured-table syntax). Used by [series]'s Drift check to
+  # recognize when an anomalous step is actually the BOUNDARY between two
+  # different named ranges - a deliberate multi-range CONSOLIDATION (e.g.
+  # three separate manure-management source tables concatenated into one
+  # target list, each with its own name like M1_Table_M_j_m5_T1) rather than
+  # a genuine single-cell copy-paste mistake. This is a STRUCTURAL signal
+  # (crossing a real, named boundary) rather than inferring intent from cell
+  # VALUES/labels, which is both more robust and far cheaper to check.
+  param($Zip)
+  $areas = New-Object System.Collections.Generic.List[object]
+  $text = Read-ZipEntryText -Zip $Zip -EntryName 'xl/workbook.xml'
+  if ($null -eq $text) { return ,$areas }
+  $doc = New-XmlDoc -Text $text
+  $ns = New-NsManager -Doc $doc -Namespaces @{ x = $script:NsMain }
+  $sheetsNode = @($doc.SelectNodes('//x:sheets/x:sheet', $ns))
+  foreach ($n in @($doc.SelectNodes('//x:definedNames/x:definedName', $ns))) {
+    $rt = $n.InnerText
+    if ([string]::IsNullOrWhiteSpace($rt) -or $rt.IndexOf(',') -ge 0) { continue }   # empty or multi-area union
+    if ($script:ErrorRegex.IsMatch($rt)) { continue }
+    $m = $script:NamedRangeAreaRegex.Match($rt.Trim())
+    if (-not $m.Success) { continue }
+    $sheetName = $null
+    if ($m.Groups['sheet'].Success) { $sheetName = $m.Groups['sheet'].Value.Trim("'") -replace "''", "'" }
+    else {
+      $localId = $n.GetAttribute('localSheetId')
+      if (-not [string]::IsNullOrEmpty($localId)) {
+        $idx = 0; [void] [int]::TryParse($localId, [ref] $idx)
+        if ($idx -ge 0 -and $idx -lt $sheetsNode.Count) { $sheetName = $sheetsNode[$idx].GetAttribute('name') }
+      }
+    }
+    if ([string]::IsNullOrEmpty($sheetName)) { continue }   # workbook-scoped name with no sheet qualifier - can't place it
+    $c1 = ConvertFrom-ColumnLetters $m.Groups['c1'].Value; $r1 = [int] $m.Groups['r1'].Value
+    $c2 = if ($m.Groups['c2'].Success) { ConvertFrom-ColumnLetters $m.Groups['c2'].Value } else { $c1 }
+    $r2 = if ($m.Groups['r2'].Success) { [int] $m.Groups['r2'].Value } else { $r1 }
+    [void] $areas.Add([pscustomobject]@{
+      Name = $n.GetAttribute('name'); Sheet = $sheetName
+      C1 = [Math]::Min($c1, $c2); C2 = [Math]::Max($c1, $c2)
+      R1 = [Math]::Min($r1, $r2); R2 = [Math]::Max($r1, $r2)
+    })
+  }
+  return ,$areas
+}
+
+function Find-EnclosingRangeName {
+  # First named-range area (from Get-NamedRangeAreas) whose rectangle
+  # contains (SheetName, Col, Row), or $null if none does. Overlapping named
+  # ranges are rare and not disambiguated - the first match is used.
+  param([System.Collections.Generic.List[object]] $Areas, [string] $SheetName, [int] $Col, [int] $Row)
+  foreach ($a in $Areas) {
+    if ($a.Sheet -ne $SheetName) { continue }
+    if ($Col -ge $a.C1 -and $Col -le $a.C2 -and $Row -ge $a.R1 -and $Row -le $a.R2) { return $a.Name }
+  }
+  return $null
+}
+
+function Find-SeriesRuns {
+  # Walks cells already sorted along one axis, splitting into maximal runs of
+  # cells that are BOTH positionally contiguous (no gap) AND share an
+  # identical formula skeleton. AxisIsColumn = $true means position is Col
+  # (a row-run, reading across columns); $false means position is Row (a
+  # column-run, reading down rows).
+  param([array] $OrderedCells, [hashtable] $Parsed, [bool] $AxisIsColumn)
+  $runs = New-Object System.Collections.Generic.List[object]
+  $current = New-Object System.Collections.Generic.List[object]
+  $prevPos = $null
+  $prevSkeleton = $null
+  foreach ($cell in $OrderedCells) {
+    $pos = if ($AxisIsColumn) { $cell.Col } else { $cell.Row }
+    if (-not $Parsed.ContainsKey($cell.Addr)) {
+      if ($current.Count -ge $script:MinSeriesRunLength) { $runs.Add(@($current.ToArray())) }
+      $current.Clear(); $prevPos = $null; $prevSkeleton = $null
+      continue
+    }
+    $sk = $Parsed[$cell.Addr].Skeleton
+    $contiguous = ($null -ne $prevPos) -and ($pos -eq $prevPos + 1) -and ($sk -eq $prevSkeleton)
+    if (-not $contiguous -and $current.Count -gt 0) {
+      if ($current.Count -ge $script:MinSeriesRunLength) { $runs.Add(@($current.ToArray())) }
+      $current.Clear()
+    }
+    $current.Add($cell)
+    $prevPos = $pos
+    $prevSkeleton = $sk
+  }
+  if ($current.Count -ge $script:MinSeriesRunLength) { $runs.Add(@($current.ToArray())) }
+  return $runs
+}
+
+function Test-PeriodicDeltaPattern {
+  # Smallest period P (>=2) for which the WHOLE delta sequence is fully
+  # explained - every index i has the same key as every other index sharing
+  # (i mod P), across at least 2 complete cycles (P is capped at
+  # floor(Count/2) so that's guaranteed). Returns $null if no such P exists
+  # for P in [2, floor(Count/2)]. Deliberately requires a PERFECT fit (no
+  # exceptions at all) - a single genuine mistake anywhere in the run breaks
+  # every candidate period, so this only ever fires for a truly regular,
+  # deliberate repeating structure (e.g. a fixed-size row-group table),
+  # never as a way to partially excuse a mostly-consistent-but-buggy run.
+  param([System.Collections.Generic.List[string]] $Keys)
+  $n = $Keys.Count
+  for ($p = 2; $p -le [Math]::Floor($n / 2); $p++) {
+    $phaseValue = @{}
+    $ok = $true
+    for ($i = 0; $i -lt $n; $i++) {
+      $r = $i % $p
+      if (-not $phaseValue.ContainsKey($r)) { $phaseValue[$r] = $Keys[$i] }
+      elseif ($phaseValue[$r] -ne $Keys[$i]) { $ok = $false; break }
+    }
+    if ($ok) { return $p }
+  }
+  return $null
+}
+
+function Test-SeriesRun {
+  # Classifies every ref "slot" (Nth plain reference, in textual order) shared
+  # by every formula in the run. A slot's step is the (sheet-changed?, dCol,
+  # dRow) delta between consecutive cells' reference at that slot.
+  param([array] $RunCells, [hashtable] $Parsed, [string] $HostSheet, [bool] $AxisIsColumn, $Zip, [array] $SheetMap, [hashtable] $ArgsSpillCache, [hashtable] $StyleNameMap, [hashtable] $StyleCellCache, [System.Collections.Generic.List[object]] $NamedRangeAreas)
+  $issues = New-Object System.Collections.Generic.List[object]
+  $refCount = $Parsed[$RunCells[0].Addr].Refs.Count
+  for ($slot = 0; $slot -lt $refCount; $slot++) {
+    $slotRefs = @($RunCells | ForEach-Object { $Parsed[$_.Addr].Refs[$slot] })
+
+    # A FULLY $-anchored operand (both Col AND Row absolute, e.g. $D$63) in
+    # EVERY cell of the run is never a copy-paste-fill drift bug, regardless
+    # of whether its address is constant or varies between cells: Excel
+    # never shifts a fully-absolute reference when a formula is filled/
+    # copied, so if the address DOES differ between cells, each cell's
+    # reference was necessarily typed/edited individually - a deliberate,
+    # manually-curated lookup into a source table (e.g. a source list with
+    # more rows than needed, picking specific ones out of order), not a
+    # relative reference that "should have" followed a fill pattern. This
+    # is the same reasoning the Frozen check already applies when an
+    # operand is fully anchored and constant; here it's extended to the
+    # case where it's fully anchored but VARIES (arbitrary, non-monotonic,
+    # sometimes non-repeating jumps) - skip both Frozen and Drift for this
+    # slot entirely, before any step/pattern analysis.
+    $allFullyAnchored = $true
+    foreach ($r in $slotRefs) { if (-not ($r.ColAbs -and $r.RowAbs)) { $allFullyAnchored = $false; break } }
+    if ($allFullyAnchored) { continue }
+
+    $keys = New-Object System.Collections.Generic.List[string]
+    $dCols = New-Object System.Collections.Generic.List[int]
+    $dRows = New-Object System.Collections.Generic.List[int]
+    $sameSheets = New-Object System.Collections.Generic.List[bool]
+    for ($i = 1; $i -lt $slotRefs.Count; $i++) {
+      $a = $slotRefs[$i - 1]; $b = $slotRefs[$i]
+      $sheetA = if ($a.SheetExplicit) { $a.SheetExplicit } else { $HostSheet }
+      $sheetB = if ($b.SheetExplicit) { $b.SheetExplicit } else { $HostSheet }
+      $same = ($sheetA -eq $sheetB)
+      $dc = $b.Col - $a.Col
+      $dr = $b.Row - $a.Row
+      $key = if ($same) { "$dc,$dr" } else { 'X' }
+      [void] $keys.Add($key); [void] $dCols.Add($dc); [void] $dRows.Add($dr); [void] $sameSheets.Add($same)
+    }
+
+    $distinctKeys = @($keys | Select-Object -Unique)
+    if ($distinctKeys.Count -le 1) {
+      if ($distinctKeys.Count -eq 1 -and $distinctKeys[0] -eq '0,0') {
+        $firstRef = $slotRefs[0]
+        # A relative fill only auto-shifts a reference along the run's OWN
+        # axis (column for a row-run, row for a column-run) - the other axis
+        # can never move regardless of $ status, so $-anchoring JUST the
+        # axis that varies (e.g. E$60 in a column-run, row-anchored, column
+        # not) is already the complete, correct, unambiguous idiom for
+        # pinning a lookup-header reference during a fill - the other axis's
+        # $ status is irrelevant noise, not evidence of anything. Only
+        # suppress-worthy when the axis-relevant flag is absolute; only
+        # flag when it's NOT, since that's the case where "frozen despite
+        # being relative on the axis that should have moved it" is
+        # genuinely suspicious.
+        $axisAnchored = if ($AxisIsColumn) { $firstRef.ColAbs } else { $firstRef.RowAbs }
+        $isArgsSpill = $false
+        $isStyleExcluded = $false
+        if (-not $axisAnchored) {
+          $effSheet = if ($firstRef.SheetExplicit) { $firstRef.SheetExplicit } else { $HostSheet }
+          if (-not $ArgsSpillCache.ContainsKey($effSheet)) {
+            $sheetInfo = $SheetMap | Where-Object { $_.Name -eq $effSheet } | Select-Object -First 1
+            $ArgsSpillCache[$effSheet] = if ($null -eq $sheetInfo) { New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase) } else { Get-ArgumentsSpillCells -Zip $Zip -Sheet $sheetInfo }
+          }
+          if (-not $StyleCellCache.ContainsKey($effSheet)) {
+            $sheetInfo2 = $SheetMap | Where-Object { $_.Name -eq $effSheet } | Select-Object -First 1
+            $StyleCellCache[$effSheet] = if ($null -eq $sheetInfo2) { New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase) } else { Get-ExcludedStyleCells -Zip $Zip -Sheet $sheetInfo2 -StyleNameMap $StyleNameMap }
+          }
+          $bareAddr = (ConvertTo-ColumnLetters $firstRef.Col) + $firstRef.Row
+          $isArgsSpill = $ArgsSpillCache[$effSheet].Contains($bareAddr)
+          $isStyleExcluded = $StyleCellCache[$effSheet].Contains($bareAddr)
+        }
+        if (-not $axisAnchored -and -not $isArgsSpill -and -not $isStyleExcluded) {
+          $runLabel = "{0}{1}:{2}{3}" -f (ConvertTo-ColumnLetters $RunCells[0].Col), $RunCells[0].Row, (ConvertTo-ColumnLetters $RunCells[-1].Col), $RunCells[-1].Row
+          [void] $issues.Add([pscustomobject]@{
+            Sheet = $HostSheet; Kind = 'Frozen'; Cell = $runLabel
+            Detail = ("operand #{0} stays fixed at {1} across the whole series {2} (not `$-anchored on the axis that varies - confirm it was meant to stay fixed rather than follow the series)" -f ($slot + 1), $firstRef.Addr, $runLabel)
+            Formula = '=' + $RunCells[0].FormulaText
+          })
+        }
+      }
+      continue   # consistent non-zero step across the whole run - healthy parallel-range operand
+    }
+
+    # A REPEATING GROUP pattern (e.g. 3 target rows share one source lookup
+    # row, then it steps forward once, repeating throughout the whole
+    # table - "mostly frozen, steps once per group boundary") looks like
+    # drift under the segment logic below, because the "step" delta never
+    # repeats CONSECUTIVELY (each group boundary is a single isolated step,
+    # forever) even though it recurs many times overall. Checked BEFORE
+    # segmentation: if the WHOLE delta sequence for this slot is fully
+    # explained by some period P (every position with the same i-mod-P has
+    # the identical delta, for at least 2 complete cycles), it's a genuine
+    # periodic/grouped structure, not a mistake - skip Drift entirely for
+    # this slot. Deliberately strict (must explain EVERY step, not just
+    # most) so a real bug breaking the cycle still falls through to the
+    # segment-based check below; a table with IRREGULARLY sized groups
+    # (not a fixed period) is not caught by this and may still be flagged.
+    $periodicP = Test-PeriodicDeltaPattern -Keys $keys
+    if ($null -ne $periodicP) { continue }
+
+    # Drift: run-length-encode the step sequence into segments of consecutive
+    # equal deltas, rather than comparing every step to one global majority.
+    # A segment of length >= $script:MinDriftSegmentLength (repeated 2+ times
+    # in a row) is treated as ITS OWN legitimate sub-pattern, not a mistake -
+    # this is what lets a genuine multi-range CONSOLIDATION (e.g. three
+    # source manure-management tables concatenated into one target range,
+    # each internally consistent but discontinuous at the boundary) pass
+    # cleanly, even though the overall run has multiple distinct steps. Only
+    # an ISOLATED step (a segment shorter than the threshold - a lone cell
+    # whose step differs from both neighbours) is flagged: a real
+    # copy-paste-drift bug essentially never reproduces the SAME wrong
+    # offset for two-plus consecutive cells by chance, so a sustained
+    # alternate step is far more likely to be a second (or third...) deliberate
+    # source range than a mistake. A remaining ambiguous case - an isolated
+    # single-step BOUNDARY between two otherwise-consistent segments, which
+    # looks identical whether it's a genuine one-cell mistake or a
+    # deliberate multi-range consolidation boundary - is resolved below via
+    # named-range membership (Get-NamedRangeAreas): crossing from one named
+    # range into a different one is treated as a legitimate boundary, not
+    # flagged. KNOWN GAP: a consolidation between UNNAMED plain cell blocks
+    # (no defined name backing either side) still can't be disambiguated
+    # this way and may still be flagged if its sub-range is only 1-2 rows
+    # long (too short to earn MinDriftSegmentLength's trust on its own).
+    $segments = New-Object System.Collections.Generic.List[object]
+    $segStart = 0
+    for ($i = 1; $i -le $keys.Count; $i++) {
+      if ($i -eq $keys.Count -or $keys[$i] -ne $keys[$segStart]) {
+        [void] $segments.Add([pscustomobject]@{ Key = $keys[$segStart]; Start = $segStart; Length = ($i - $segStart) })
+        $segStart = $i
+      }
+    }
+
+    # A key that recurs $script:MinDriftRepeatCount+ times ANYWHERE in the
+    # run - even scattered, never twice consecutively - is ALSO trusted, on
+    # top of the consecutive-segment rule above. This catches an
+    # IRREGULARLY-sized repeating group table (e.g. row-groups of 3, 4, 3,
+    # 3, 3, 4 rows - no fixed period for Test-PeriodicDeltaPattern to find,
+    # but the same "step" delta still shows up several separate times) that
+    # neither the segment-length rule nor the periodicity check above can
+    # explain on their own. 3+ independent occurrences of the exact same
+    # delta is strong evidence of a deliberate repeating structure - a
+    # genuine copy-paste mistake essentially never reproduces the identical
+    # wrong offset three separate times by chance.
+    $totalCounts = @{}
+    foreach ($k in $keys) { if (-not $totalCounts.ContainsKey($k)) { $totalCounts[$k] = 0 }; $totalCounts[$k]++ }
+
+    $trustedCoverage = @{}
+    foreach ($seg in $segments) {
+      if ($seg.Length -ge $script:MinDriftSegmentLength -or $totalCounts[$seg.Key] -ge $script:MinDriftRepeatCount) {
+        if (-not $trustedCoverage.ContainsKey($seg.Key)) { $trustedCoverage[$seg.Key] = 0 }
+        $trustedCoverage[$seg.Key] += $seg.Length
+      }
+    }
+    if ($trustedCoverage.Count -gt 0) {
+      $majorityKey = ($trustedCoverage.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1).Key
+    } else {
+      # No segment reaches the trust threshold at all (every step differs
+      # from its neighbours) - fall back to plain frequency, as before.
+      $majorityKey = ($totalCounts.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First 1).Key
+    }
+
+    for ($si = 0; $si -lt $segments.Count; $si++) {
+      $seg = $segments[$si]
+      if ($seg.Length -ge $script:MinDriftSegmentLength -or $totalCounts[$seg.Key] -ge $script:MinDriftRepeatCount) { continue }   # sustained OR non-consecutively-repeating pattern - a legitimate consolidated sub-range, not a mistake
+
+      # An isolated (short) segment directly between two segments is trusted
+      # as a within-table sub-group boundary rather than a mistake - e.g.
+      # two MMS-type row groups (Pasture range and paddock / Anaerobic
+      # lagoon) consolidated into ONE named table, where the named-range
+      # check below can't help since both sides share the SAME name. A
+      # segment's Length is a DELTA count, one less than its cell count
+      # (e.g. a 4-row block is Length=3), so the check is against
+      # Length+1 = $script:MinBoundaryFlankRows.
+      # For a COLUMN-run (AxisIsColumn=$false, varying by ROW - the shape
+      # every example so far has been), only ONE flank needs to be
+      # well-established: a genuine sub-group can be as short as ONE row
+      # (e.g. "Solid storage" - a single-row MMS-type group with no
+      # internal repetition of its own to prove itself), so requiring BOTH
+      # neighbours to be long was too strict for this axis. For a ROW-run
+      # (AxisIsColumn=$true, varying by COLUMN), keep requiring BOTH flanks
+      # - no evidence yet that consolidation happens along that axis, so
+      # stay conservative there. Tradeoff (accepted): a genuine one-cell
+      # mistake sitting at the EDGE of a long uniform column-run (next to
+      # only one long flank, nothing on the other side) can now also be
+      # missed - judged less likely in practice than a real short group.
+      $prevSeg = if ($si -gt 0) { $segments[$si - 1] } else { $null }
+      $nextSeg = if ($si -lt $segments.Count - 1) { $segments[$si + 1] } else { $null }
+      $prevOk = ($null -ne $prevSeg -and ($prevSeg.Length + 1) -ge $script:MinBoundaryFlankRows)
+      $nextOk = ($null -ne $nextSeg -and ($nextSeg.Length + 1) -ge $script:MinBoundaryFlankRows)
+      $isTrustedBoundary = if (-not $AxisIsColumn) { $prevOk -or $nextOk } else { $prevOk -and $nextOk }
+      if ($isTrustedBoundary) { continue }
+
+      for ($j = 0; $j -lt $seg.Length; $j++) {
+        $i = $seg.Start + $j
+        if ($keys[$i] -eq $majorityKey) { continue }
+
+        # A length-1 (or 2-, up to the threshold) anomaly sandwiched between
+        # two otherwise-normal steps is structurally IDENTICAL whether it's
+        # a genuine single-cell mistake or the boundary of a deliberate
+        # multi-range consolidation - address deltas alone can't tell them
+        # apart. But if the FROM and TO cells at this exact step land inside
+        # two DIFFERENT known named ranges (e.g. the last row of
+        # M1_Table_M_j_m5_T1 and the first row of M1_Table_M_j_m_T2), that's
+        # a real, deliberate boundary between two named source tables, not a
+        # mistake - suppress it. Still flagged when both sides are in the
+        # SAME named range (or neither is in any named range at all), since
+        # that's the genuine single-cell-drift shape this check exists for.
+        $fromRef = $slotRefs[$i]; $toRef = $slotRefs[$i + 1]
+        $fromSheet = if ($fromRef.SheetExplicit) { $fromRef.SheetExplicit } else { $HostSheet }
+        $toSheet = if ($toRef.SheetExplicit) { $toRef.SheetExplicit } else { $HostSheet }
+        $fromRangeName = Find-EnclosingRangeName -Areas $NamedRangeAreas -SheetName $fromSheet -Col $fromRef.Col -Row $fromRef.Row
+        $toRangeName = Find-EnclosingRangeName -Areas $NamedRangeAreas -SheetName $toSheet -Col $toRef.Col -Row $toRef.Row
+        if ($null -ne $fromRangeName -and $null -ne $toRangeName -and $fromRangeName -ne $toRangeName) { continue }
+
+        $fromCell = $RunCells[$i]; $toCell = $RunCells[$i + 1]
+        $expected = if ($majorityKey -eq 'X') { 'a same-sheet reference' } else { "step ($majorityKey)" }
+        $actual = if ($sameSheets[$i]) { "step ($($dCols[$i]),$($dRows[$i]))" } else { 'a different sheet' }
+        [void] $issues.Add([pscustomobject]@{
+          Sheet = $HostSheet; Kind = 'Drift'; Cell = $toCell.Addr
+          Detail = ("operand #{0} at {1} breaks the run's pattern: expected {2} from {3}, found {4}" -f ($slot + 1), $toCell.Addr, $expected, $fromCell.Addr, $actual)
+          Formula = '=' + $toCell.FormulaText
+        })
+      }
+    }
+  }
+  return $issues
+}
+
+function Get-SeriesConsistencyIssues {
+  param($Zip, [array] $SheetMap)
+  $issues = New-Object System.Collections.Generic.List[object]
+  $argsSpillCache = @{}    # sheet name -> HashSet[string], built lazily, shared across the whole scan
+  $styleCellCache = @{}    # sheet name -> HashSet[string] of excluded-style addresses, built lazily
+  $styleNameMap = Get-CellStyleNameMap -Zip $Zip   # workbook-level, computed once
+  $namedRangeAreas = Get-NamedRangeAreas -Zip $Zip   # workbook-level, computed once
+  foreach ($sheet in $SheetMap) {
+    $cells = @(Get-SheetFormulaCells -Zip $Zip -Sheet $sheet)
+    if ($cells.Count -lt $script:MinSeriesRunLength) { continue }
+
+    if (-not $styleCellCache.ContainsKey($sheet.Name)) {
+      $styleCellCache[$sheet.Name] = Get-ExcludedStyleCells -Zip $Zip -Sheet $sheet -StyleNameMap $styleNameMap
+    }
+    $excludedHere = $styleCellCache[$sheet.Name]
+
+    $parsed = @{}
+    foreach ($cell in $cells) {
+      if ($excludedHere.Contains($cell.Addr)) { continue }   # "Unit no indent" / "Arguments hyperlink" - never a run member
+      $sk = Get-FormulaSkeleton -FormulaText $cell.FormulaText
+      if ($null -ne $sk) { $parsed[$cell.Addr] = $sk }
+    }
+    if ($parsed.Count -eq 0) { continue }
+
+    foreach ($g in ($cells | Group-Object Row)) {
+      $ordered = @($g.Group | Sort-Object Col)
+      foreach ($run in (Find-SeriesRuns -OrderedCells $ordered -Parsed $parsed -AxisIsColumn $true)) {
+        foreach ($iss in (Test-SeriesRun -RunCells $run -Parsed $parsed -HostSheet $sheet.Name -AxisIsColumn $true -Zip $Zip -SheetMap $SheetMap -ArgsSpillCache $argsSpillCache -StyleNameMap $styleNameMap -StyleCellCache $styleCellCache -NamedRangeAreas $namedRangeAreas)) { [void] $issues.Add($iss) }
+      }
+    }
+    foreach ($g in ($cells | Group-Object Col)) {
+      $ordered = @($g.Group | Sort-Object Row)
+      foreach ($run in (Find-SeriesRuns -OrderedCells $ordered -Parsed $parsed -AxisIsColumn $false)) {
+        foreach ($iss in (Test-SeriesRun -RunCells $run -Parsed $parsed -HostSheet $sheet.Name -AxisIsColumn $false -Zip $Zip -SheetMap $SheetMap -ArgsSpillCache $argsSpillCache -StyleNameMap $styleNameMap -StyleCellCache $styleCellCache -NamedRangeAreas $namedRangeAreas)) { [void] $issues.Add($iss) }
+      }
+    }
+  }
+  # NOTE: return the List<object> itself, NOT @($issues) - on this PowerShell
+  # 5.1 build, wrapping a materialized Generic.List<T> VARIABLE directly with
+  # the @() array-subexpression operator throws "Argument types do not match"
+  # (ArgumentException), reproduced even for an EMPTY list, with or without
+  # Set-StrictMode, in a fresh process - a genuine engine quirk on this build,
+  # not something specific to this data. @() on a REGULAR array, or on a
+  # pipeline/function-call result (which unrolls a List's contents into the
+  # output stream one item at a time, same as every other check in this
+  # script already does), is unaffected - only @() applied straight to a
+  # List<T>-typed variable breaks. The caller already wraps this call with
+  # @(Get-SeriesConsistencyIssues ...), which is the safe pattern.
   return $issues
 }
 
@@ -941,11 +1689,11 @@ if (@($workbooks).Count -eq 0) { Write-Host 'No workbooks found to scan.'; retur
 
 Write-Host ("Scanning {0} workbook(s) for errors (read-only)..." -f @($workbooks).Count)
 
-$grand = @{ cell = 0; name = 0; link = 0; sheet = 0; sum = 0; marked = 0; shift = 0; hiddenCached = 0; wbWithIssues = 0 }
+$grand = @{ cell = 0; name = 0; link = 0; sheet = 0; sum = 0; marked = 0; shift = 0; series = 0; hiddenCached = 0; wbWithIssues = 0 }
 
 foreach ($path in $workbooks) {
   $leaf = Split-Path $path -Leaf
-  $cellErrors = @(); $nameErrors = @(); $extLinks = @(); $sumMismatches = @(); $sumMarked = 0; $missingSheetRefs = @(); $numericOperandIssues = @(); $fullCalcOnLoad = $false
+  $cellErrors = @(); $nameErrors = @(); $extLinks = @(); $sumMismatches = @(); $sumMarked = 0; $missingSheetRefs = @(); $numericOperandIssues = @(); $seriesIssues = @(); $fullCalcOnLoad = $false
   try {
     $zip = [System.IO.Compression.ZipFile]::Open($path, [System.IO.Compression.ZipArchiveMode]::Read)
     try {
@@ -963,6 +1711,9 @@ foreach ($path in $workbooks) {
       if (-not $SkipNumericOperandCheck) {
         $numericOperandIssues = @(Get-NumericOperandIssues -Zip $zip -SheetMap $sheetMap)
       }
+      if ($IncludeSeriesCheck) {
+        $seriesIssues = @(Get-SeriesConsistencyIssues -Zip $zip -SheetMap $sheetMap)
+      }
     } finally { $zip.Dispose() }
   } catch {
     Write-Host ''
@@ -979,7 +1730,7 @@ foreach ($path in $workbooks) {
   $shownCellErrors = @(if ($fullCalcOnLoad -and -not $IncludeCachedErrors) { $cellErrors | Where-Object { -not $_.IsCached } } else { $cellErrors })
   $hiddenCached = @($cellErrors).Count - $shownCellErrors.Count
   $grand.hiddenCached += $hiddenCached
-  $total = $shownCellErrors.Count + $nameErrors.Count + $extLinks.Count + $missingSheetRefs.Count + $sumMismatches.Count + $numericOperandIssues.Count
+  $total = $shownCellErrors.Count + $nameErrors.Count + $extLinks.Count + $missingSheetRefs.Count + $sumMismatches.Count + $numericOperandIssues.Count + $seriesIssues.Count
   if ($total -eq 0) { continue }
   $grand.wbWithIssues++
 
@@ -1054,6 +1805,14 @@ foreach ($path in $workbooks) {
       "'{0}'!{1}  operand {2} {3}   {4}" -f $s.Sheet, $s.Cell, $s.RefCell, $s.Detail, $s.Formula
     }
   }
+
+  if ($seriesIssues.Count -gt 0) {
+    $grand.series += $seriesIssues.Count
+    Write-Host ("  Range-series reference issues ({0}):" -f $seriesIssues.Count) -ForegroundColor Blue
+    Write-Capped -Items $seriesIssues -Max $Max -Format {
+      param($s) "[{0,-6}] '{1}'!{2}  {3}   {4}" -f $s.Kind, $s.Sheet, $s.Cell, $s.Detail, $s.Formula
+    }
+  }
 }
 
 Write-Host ''
@@ -1061,14 +1820,17 @@ Write-Host ('=' * 78)
 if ($grand.wbWithIssues -eq 0) {
   Write-Host ("CLEAN: no errors found in {0} workbook(s)." -f @($workbooks).Count) -ForegroundColor Green
 } else {
-  Write-Host ("TOTAL: {0} cell error(s), {1} broken name(s), {2} external link(s), {3} missing-sheet ref(s), {4} SUM range mismatch(es), {5} numeric-operand mismatch(es) across {6} of {7} workbook(s)." -f `
-    $grand.cell, $grand.name, $grand.link, $grand.sheet, $grand.sum, $grand.shift, $grand.wbWithIssues, @($workbooks).Count)
+  Write-Host ("TOTAL: {0} cell error(s), {1} broken name(s), {2} external link(s), {3} missing-sheet ref(s), {4} SUM range mismatch(es), {5} numeric-operand mismatch(es), {6} range-series issue(s) across {7} of {8} workbook(s)." -f `
+    $grand.cell, $grand.name, $grand.link, $grand.sheet, $grand.sum, $grand.shift, $grand.series, $grand.wbWithIssues, @($workbooks).Count)
 }
 if ($grand.marked -gt 0) {
   Write-Host ("       ({0} SUM formula(s) marked intentional via N(`"Partial...`") across all scanned workbooks)" -f $grand.marked) -ForegroundColor DarkGray
 }
 if ($grand.hiddenCached -gt 0 -and -not $IncludeCachedErrors) {
   Write-Host ("       ({0} provisional cached cell error(s) hidden under fullCalcOnLoad; pass -IncludeCachedErrors to list)" -f $grand.hiddenCached) -ForegroundColor DarkGray
+}
+if (-not $IncludeSeriesCheck) {
+  Write-Host "       ([series] range-follow check skipped by default; pass -IncludeSeriesCheck to run it)" -ForegroundColor DarkGray
 }
 
 if ($FailOnError -and ($grand.cell -gt 0 -or $grand.name -gt 0)) { exit 1 }

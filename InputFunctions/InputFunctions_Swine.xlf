@@ -1,0 +1,10 @@
+CalculateActualPercentManureSold
+=LAMBDA(
+    Stage1MMSPercents, PercentSeparated, Stage2MMSPercents, PercentManureSold,
+    (
+        ((SUM(Stage1MMSPercents)-(SUM(Stage1MMSPercents)*PercentSeparated))/4)
+        *
+        (SUM(Stage2MMSPercents)/4)
+    )
+    * PercentManureSold
+);

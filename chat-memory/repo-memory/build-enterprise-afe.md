@@ -111,6 +111,42 @@ isolated Excel-COM repros in scratch files (never touching repo files) to
 reproduce the exact externalisation + BreakLink corruption mechanism before
 patching the real script.
 
+## sheetGroups.Livestock sheet-name mismatch across module workbooks (2026-08)
+SYMPTOM: `npm run build-enterprise -- Swine` failed with `'Constants - Common
+Livestock' (category constants) not found in 4_5_ManureManagement_Swine_WIP_
+v06.xlsx`.
+ROOT CAUSE: `_ModuleRegistry.json`'s `sheetGroups.Livestock.sheets` names the
+shared sheet `"Constants - Common Livestock"` - the actual name only in
+`4_2_ManureManagement_BeefPasture` and `4_3_ManureManagement_Dairy`. The other
+three ManureManagement/Enteric-adjacent livestock workbooks
+(`4_1_..._Feedlot`, `4_5_..._Swine`, `4_6_..._Poultry`, `4_7_..._OtherLivestock`)
+call the equivalent sheet just `"Constants - Livestock"` - an inconsistency in
+the SOURCE workbooks themselves, not something the registry can paper over
+generically. Confirmed present under that name in BOTH of Swine's own module
+workbooks (`4_5_ManureManagement_Swine` and `3_5_Enteric_Swine`), not just one -
+consistent within Swine, just inconsistent with the registry's expected name. (the "dedupe" strategy in `Add-SheetToPlan`/`$activeGroups` just
+takes the sourceWorkbook of the FIRST selected module that requests the group
+and looks for the exact sheet name in it - no fallback search across other
+candidates). So any enterprise whose FIRST livestock module is Feedlot/Swine/
+Poultry/OtherLivestock hits this; Dairy/PastureBeef never did because their
+manure-management module happens to use the matching name AND is listed first.
+FIRST FIX TRIED, then reverted: removed `"Livestock"` from `ManureManagement_
+Swine`/`Enteric_Swine`'s `groups` in the registry (user initially said "I
+don't need that sheet" in reaction to the build error). Reverted once the
+user clarified they'd rather standardize the naming: they are renaming the
+actual worksheet from "Constants - Livestock" to "Constants - Common
+Livestock" in BOTH `4_5_ManureManagement_Swine_WIP_v06.xlsx` and
+`3_5_Enteric_Swine_WIP_v*.xlsx` (confirmed both source files carry their own
+copy of this sheet, done manually in Excel, not scripted) so it matches what
+the registry already expects - `groups` restored to `["Livestock",
+"Cropping"]` on both. Also added a `"Constants - Common Livestock"` menu
+label entry to `Enterprise_Swine.json` in prep for this (menu labels don't
+auto-derive for `Constants -` prefixed sheets the way `Input -` ones do).
+NOT fixed generically: Feedlot/Poultry/OtherLivestock enterprises (not yet
+built) still have their own copies named "Constants - Livestock" and will
+hit the identical error if/when built with one of those modules listed
+first, unless those source workbooks get the same rename treatment.
+
 ## IMPORT-ORDER RULE for shared/duplicate input sheets (2026-08)
 When two modules ship the SAME input sheet + named ranges (Enteric vs
 ManureManagement both have 'Input - Dairy' / 'Input - Pasture Beef'), the

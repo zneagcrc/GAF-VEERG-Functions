@@ -1,5 +1,28 @@
 # Enterprise template authoring (manual process) + list-enterprise-results.ps1
 
+## Result names aren't always Method1/Method2 (2026-08)
+`list-enterprise-results.ps1` originally matched only `_Result_Method[12]`
+suffixes. The Fuel module (`8_Fuel_WIP_v05.xlsx`, also embedded inside
+`13_Scope3_WIP_v14.xlsx` for section 15.11) instead publishes ONE result PER
+GAS from a single calculation - `_Result_CO2`/`_Result_CH4`/`_Result_N2O`/
+`_Result_Scope3`, no Method1/Method2 concept at all (fuel combustion doesn't
+have "two alternate methodologies" the way most VEERG equations do). The
+names were always correctly published; the script's regex just couldn't see
+them, so Fuel silently showed NOTHING for every enterprise that includes it
+(Dairy, PastureBeef, Swine, ...) - not a Swine-specific or missing-name bug,
+just never noticed until someone asked "where did Fuel go" for Swine
+specifically. FIX: `$resultNameRegex` now captures the suffix generically
+(`_Result_(?<suffix>[A-Za-z0-9]+)`); output renders the familiar fixed
+"Method 1: .../Method 2: (none)" two-slot form when a (sheet, base) group's
+suffixes are a subset of {Method1, Method2} (preserves the "(none)" signal
+that's genuinely useful there), and falls back to listing whatever suffixes
+ARE present with no "(none)" padding otherwise (a fixed expected set doesn't
+exist for the per-gas shape). Confirmed no other module uses a non-Method
+suffix (grepped every `Excel/*.xlsx` for `_Result_<suffix>` where suffix
+isn't Method1/Method2 - only Fuel's two equations, 4 suffixes each, appeared).
+If a THIRD naming shape ever turns up, extend the same way rather than
+special-casing Fuel by name.
+
 Making a new enterprise's `Excel/Enterprises/*_Template_*.xlsx` is the ONE stage
 in the pipeline (see enterprise-build-pipeline.md Stage 1) with zero tooling -
 everything from Stage 2 (`build-enterprise`) onward is scripted, the template's

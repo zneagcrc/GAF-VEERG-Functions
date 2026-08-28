@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "enterprise": {
+    "id": "Swine",
+    "name": "Swine Enterprise",
+    "description": "DRAFT - a swine enterprise: enteric fermentation and manure emissions from the herd, plus the farm's energy, waste and upstream (Scope 3) emissions. Not yet ready for build-enterprise - customSheets/options.menu and the templateWorkbook are not filled in yet.",
+    "templateWorkbook": "Enterprise_Swine_Template_WIP_v01.xlsx",
+    "outputWorkbook": "Enterprise_Swine_WIP_v01.xlsx",
+    "allocatable": false
+  },
+
+   "customSheets": [
+    {
+      "name": "Results - Activity period",
+      "kind": "results",
+      "source": "custom",
+      "description": "The single enterprise-wide results tab, unique to this enterprise. Module Results tabs are NOT imported; this sheet reads each module's result cells directly by named range."
+    },
+    {
+      "name": "Results - Product EI",
+      "kind": "results",
+      "source": "custom",
+      "description": "The Product EI results tab, unique to this enterprise. Module Results tabs are NOT imported; this sheet reads each module's result cells directly by named range."
+    },
+    {
+      "name": "Input - Site",
+      "kind": "input",
+      "source": "custom",
+      "description": "Site-specific inputs for this enterprise. Has fewer fields than the typical module excel site sheet."
+    },
+    {
+      "name": "Input - Enterprise",
+      "kind": "input",
+      "source": "custom",
+      "description": "Optional enterprise-level input sheet for values shared across modules. Imported module input sheets are kept as-is alongside this one."
+    },
+    {
+      "name": "Input - Livestock sales",
+      "kind": "input",
+      "source": "custom",
+      "description": "Table of livestock sales"
+    },
+    {
+      "name": "Input - Data quality",
+      "kind": "input",
+      "source": "custom",
+      "description": "Table of data quality inputs"
+    }
+  ],
+
+  "modules": [
+    {
+      "id": "ManureManagement_Swine",
+      "comment": "IMPORT-ORDER RULE: the CANONICAL module for a shared input sheet must be listed FIRST. ManureManagement_Swine and Enteric_Swine both ship 'Input - Swine'; ManureManagement is assumed canonical (full input set) here - confirm before building."
+    },
+    {
+      "id": "Enteric_Swine",
+      "comment": "Duplicate of the shared input sheet: imported AFTER the canonical ManureManagement_Swine and renamed via renameSheets so it does not collide.",
+      "include": {
+        "calculation": ["3.5.1.1-2 Enteric Methane"]
+      }
+    },
+    "Electricity_Scope2",
+    "Fuel",
+    {
+      "id": "Fertiliser",
+      "comment": "Fertiliser constants required for manure sent off site calcs",
+      "include": {
+        "constants": ["Constants - Fertiliser"]
+      }
+    },
+    "SolidWaste",
+    {
+      "id": "Scope3",
+      "comment": "Per the Chapter 2 doc's Swine MODULE MAP TABLE (authoritative - not the prose 'additional guidance' sentence, which is incomplete/misleading, e.g. it omits Fuel entirely even though Fuel is genuinely in the table): relevant Scope 3 rows are 15.1 Purchased Livestock, 15.2 Purchased Feed, 15.7 Purchased Services/Contractors, 15.10 Other Purchased Goods and Services, 15.11 Upstream Emission from Fuel, 15.12 Upstream Emissions of Purchased Electricity, 15.13 Management of Waste. The '15 Scope 3' calc sheet carries all Scope3 sub-sections with no per-row subsetting available, so irrelevant rows (15.3 mineral supplements, 15.4 fertiliser components, 15.5 agrichemicals, 15.6 lime, 15.8 packaging, 15.9 grow media, 15.14 freight - NOT in the swine table) will still show up when listing/pasting results; pick only the relevant rows by hand. OPEN QUESTION: 'Input - Freight' is kept below since freight-adjacent quantities may still feed other included rows, but the table does not list a distinct Freight module (15.14) for swine the way it does for Dairy/PastureBeef - worth confirming whether it's actually needed before building.",
+      "include": {
+        "input": ["Input - Pig purchases","Input - Common farm inputs", "Input - Livestock farm Inputs", "Input - Freight", "Input - Manure sent off-site"],
+        "calculation": ["15 Scope 3", "Calcs - Manure sent off-site"],
+        "constants": ["Constants - Scope 3"]
+      }
+    }
+  ],
+
+  "options": {
+    "registry": "_ModuleRegistry.json",
+    "includeCommonSheets": true,
+    "dedupeSheetsByName": true,
+    "dedupeExcelLabsModules": true,
+    "onDuplicateSheet": "skip",
+    "sheetOrder": [ "custom", "input", "calculation", "constants", "common" ],
+    "menu": {
+      "comment": "The column-A navigation menu is regenerated on every sheet from the final sheet set. Groups are assigned automatically: Home/Results = untitled; any sheet named 'Input*' = INPUTS; calculation sheets = CALCULATIONS; everything else = APPENDICES. 'labels' overrides the link text for a sheet (default derivation strips the 'Input - ' prefix, otherwise uses the sheet name). Set enabled=false to leave existing menus untouched.",
+      "enabled": true,
+      "labels": {
+        "Home": "Home",
+        "Results - Activity period": "Results - Activity period",
+        "Results - Product EI": "Results - Product Emissions Intensity",
+        "Input - Enterprise": "Enterprise",
+        "Input - Site": "Site",
+        "Input - Swine": "Swine",
+        "Input - Livestock sales": "Livestock sales",
+        "Input - Pig purchases": "Pig purchases",
+        "Input - Fuel": "Fuel",
+        "Input - Electricity": "Electricity",
+        "Input - Common farm inputs": "Common farm inputs",
+        "Input - Livestock farm Inputs": "Livestock farm Inputs",
+        "Input - Freight": "Freight",
+        "Input - Solid waste": "Solid waste",
+        "Input - Manure sent off-site": "Manure sent off-site",
+        "Input - Data quality": "Data quality",
+        "3.5.1.1-2 Enteric Methane": "3.5.1.1-2 Enteric Methane",
+        "4.5.1.1-2 Methane": "4.5.1.1-2 Manure Methane",
+        "4.5.1.3-4 Direct N2O": "4.5.1.3-4 Manure Direct N2O",
+        "4.5.1.5-6 Atmos Dep": "4.5.1.5-6 Manure Atmos Dep",
+        "4.5.1.7-8 Leaching and runoff": "4.5.1.7-8 Manure Leaching and runoff",
+        "4.5.1.9 Manure applied to soils": "4.5.1.9 Manure applied to soils",
+        "8.1.1.1-2 Transport fuel": "8.1.1.1-2 Transport fuel",
+        "8.2.1.1-2 Stationary fuel": "8.2.1.1-2 Stationary fuel",
+        "10.1.1-2 Solid waste treatment": "10.1.1.1-2 Solid waste",
+        "14.1.1-2 Purchased electricity": "14.1.1-2 Purchased electricity",
+        "15 Scope 3": "15 Scope 3",
+        "Calcs - Manure sent off-site": "Calcs - Manure sent off-site",
+        "Constants - Swine": "Constants - Swine",
+        "Constants - Common Livestock": "Constants - Common Livestock",
+        "Constants - Electricity": "Constants - Electricity",
+        "Constants - Fertiliser": "Constants - Fertiliser",
+        "Constants - Fuel": "Constants - Fuel",
+        "Constants - Scope 3": "Constants - Scope 3",
+        "Constants - Solid Waste": "Constants - Solid Waste",
+        "Constants - Common": "Constants - Common"
+      }
+    }
+  }
+}
