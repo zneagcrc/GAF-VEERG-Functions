@@ -220,40 +220,6 @@ function Merge-AfeModules {
   return [pscustomobject]@{ Added = @($added); Updated = @($updated) }
 }
 
-function Get-WorkbookScopedNameSet {
-  # Returns a case-insensitive set of the workbook-scoped defined names (no
-  # localSheetId) declared in a workbook's xl/workbook.xml. Used to capture the
-  # enterprise template's authoritative names before module sheets are imported.
-  # Names whose definition is broken (#REF!) or empty are EXCLUDED: a template
-  # placeholder that points nowhere is not canonical, so it must not be treated
-  # as authoritative (otherwise the prune would delete the valid sheet-scoped
-  # copies that modules bring in, e.g. X_Cell_PastureBeef_* on the input sheets).
-  param([string] $Path)
-
-  $set = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
-  $mainNs = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
-  $zip = [System.IO.Compression.ZipFile]::Open($Path, [System.IO.Compression.ZipArchiveMode]::Read)
-  try {
-    $entry = $zip.GetEntry('xl/workbook.xml')
-    if ($null -eq $entry) { return $set }
-    $reader = [System.IO.StreamReader]::new($entry.Open(), [System.Text.Encoding]::UTF8)
-    try { $xmlText = $reader.ReadToEnd() } finally { $reader.Dispose() }
-    $doc = New-Object System.Xml.XmlDocument
-    $doc.LoadXml($xmlText)
-    $ns = New-Object System.Xml.XmlNamespaceManager($doc.NameTable)
-    $ns.AddNamespace('x', $mainNs)
-    foreach ($n in @($doc.SelectNodes('//x:definedName', $ns))) {
-      if (-not [string]::IsNullOrEmpty($n.GetAttribute('localSheetId'))) { continue }
-      $nm = $n.GetAttribute('name')
-      if ([string]::IsNullOrEmpty($nm)) { continue }
-      $rt = $n.InnerText
-      if ([string]::IsNullOrWhiteSpace($rt) -or $rt -match '#REF!') { continue }  # broken placeholder: not authoritative
-      [void] $set.Add($nm)
-    }
-  } finally { $zip.Dispose() }
-  return $set
-}
-
 function Remove-RedundantSheetScopedNames {
   # Copying sheets one-at-a-time makes Excel duplicate every workbook-scoped name
   # a sheet references as a SHEET-SCOPED copy: Excel Labs (AFE) LAMBDA functions
@@ -268,17 +234,31 @@ function Remove-RedundantSheetScopedNames {
   # xl/workbook.xml in the saved .xlsx zip: for each <definedName localSheetId>
   # whose name also exists workbook-scoped (no localSheetId), drop the sheet-
   # scoped node so unqualified formulas fall through to the single workbook-
-  # scoped name. A sheet-scoped name is removed when EITHER:
-  #   (a) its definition is IDENTICAL to the workbook-scoped one (a pure copy), OR
-  #   (b) the name is AUTHORITATIVE (defined workbook-scoped in the enterprise
-  #       template) - the template's definition wins even if the sheet-scoped
-  #       copy points somewhere else, because importing a source sheet drags in a
-  #       stale shadow (e.g. X_Cell_Site_StartDate -> 'Input - Site'!E12 shadowing
-  #       the template's 'Input - Enterprise'!E12). Sheet-scoped names with no
-  #       workbook counterpart (Print_Area, per-sheet tables like M1_Table_*, TOC
-  #       bookmarks) and non-template names whose definition genuinely differs
-  #       (e.g. a valid sheet-scoped copy shadowing a #REF! workbook name) are
-  #       left untouched.
+  # scoped name.
+  #
+  # POLICY (2026-08, simplified): a sheet-scoped shadow is removed whenever a
+  # workbook-scoped counterpart exists AND that counterpart is not itself broken
+  # (not #REF!/empty) - regardless of whether the shadow's own definition
+  # matches it. The workbook-scoped name always belongs to whichever module's
+  # copy of a shared sheet was imported FIRST (the IMPORT-ORDER RULE used
+  # throughout Enterprise_*.json to pick a canonical module for a duplicate
+  # input sheet, e.g. ManureManagement before Enteric) - that module's copy is
+  # the one intended to survive, so a later-imported module's shadow of the
+  # same name is always superseded by it, even when the two source workbooks
+  # disagree on the range's size or position (e.g. one module's copy of a table
+  # has more rows than another's - a real case hit building Enterprise_Feedlot,
+  # X_Table_Feedlot_Intake_Method1/2 sat at different rows in
+  # 4_1_ManureManagement_Feedlot vs 3_1_Enteric_Feedlot). A formula that
+  # resolves the name via relative addressing (OFFSET, etc) keeps working
+  # correctly against the surviving definition; only a formula that depended on
+  # the SIZE of its own module's now-discarded copy would be affected, and none
+  # observed so far do.
+  # The ONLY case left un-pruned is when the workbook-scoped counterpart is
+  # itself broken (#REF!/empty) - then the sheet-scoped shadow is kept, since it
+  # may be the only valid definition (deleting it would turn a working formula
+  # into a #REF! error). Sheet-scoped names with no workbook counterpart at all
+  # (Print_Area, per-sheet tables like M1_Table_*, TOC bookmarks) are also left
+  # untouched, as before.
   #
   # After pruning, cells that referenced a removed shadow still hold the CACHED
   # error value Excel computed while the shadow was in force; Excel loads cached
@@ -286,8 +266,7 @@ function Remove-RedundantSheetScopedNames {
   # formula is re-entered. To fix this we force a full recalc on next open by
   # setting <calcPr fullCalcOnLoad="1">.
   param(
-    [string] $TargetPath,
-    [System.Collections.Generic.HashSet[string]] $AuthoritativeNames = $null
+    [string] $TargetPath
   )
 
   $result = [pscustomobject]@{ Removed = 0; Kept = 0 }
@@ -328,8 +307,9 @@ function Remove-RedundantSheetScopedNames {
       $nm = $n.GetAttribute('name')
       if ([string]::IsNullOrEmpty($nm)) { continue }
       if (-not $wbScoped.ContainsKey($nm)) { $kept++; continue }        # no wb counterpart -> keep
-      $isAuthoritative = ($null -ne $AuthoritativeNames -and $AuthoritativeNames.Contains($nm))
-      if (-not $isAuthoritative -and $n.InnerText -ne $wbScoped[$nm]) { $kept++; continue }  # non-template & differs -> keep
+      $wbDef = $wbScoped[$nm]
+      $wbDefIsBroken = [string]::IsNullOrWhiteSpace($wbDef) -or $wbDef -match '#REF!'
+      if ($wbDefIsBroken) { $kept++; continue }   # wb-scoped counterpart is itself broken -> keep the (possibly good) shadow rather than fall through to a #REF!
       [void] $definedNamesNode.RemoveChild($n)
       $removed++
     }
@@ -506,15 +486,10 @@ $enterprisesDir = Join-Path $excelDir 'Enterprises'
 $templateName = [string] $config.enterprise.templateWorkbook
 if ([string]::IsNullOrWhiteSpace($templateName)) { $templateName = [string] $registry.templateWorkbook }
 $templatePath = $null
-$templateNameSet = $null
 if (-not [string]::IsNullOrWhiteSpace($templateName)) {
   $templatePath = if ([System.IO.Path]::IsPathRooted($templateName)) { $templateName } else { Join-Path $enterprisesDir $templateName }
   if (-not (Test-Path -LiteralPath $templatePath)) { throw "Enterprise template workbook not found: $templatePath" }
   $templatePath = (Resolve-Path -LiteralPath $templatePath).Path
-  # Capture the template's workbook-scoped names BEFORE import. These are
-  # authoritative: any sheet-scoped shadow of them dragged in by a copied source
-  # sheet is pruned after save so references resolve to the template's cell.
-  $templateNameSet = Get-WorkbookScopedNameSet -Path $templatePath
   if (-not $DryRun -and -not $PruneShadowsOnly) {
     # Pre-flight: the template must be readable and the output must not be open,
     # or the copy/overwrite below (and later save) would fail mid-build.
@@ -540,8 +515,8 @@ Write-Host ''
 # --- Prune-only mode ----------------------------------------------------------
 # Strip the redundant sheet-scoped (shadow) copies of workbook-scoped names that
 # accumulate when module sheets are copied into the enterprise book, WITHOUT a
-# full rebuild. Reuses the same authoritative-name set (template's workbook-scoped
-# names) and prune as a normal build.
+# full rebuild - same prune Remove-RedundantSheetScopedNames applies after a
+# normal build.
 if ($PruneShadowsOnly) {
   if (-not (Test-Path -LiteralPath $OutputPath)) {
     throw "Cannot prune: enterprise output workbook not found: $OutputPath"
@@ -551,11 +526,8 @@ if ($PruneShadowsOnly) {
     return
   }
   Assert-FilesAccessible -WritePaths @($OutputPath)
-  if ($null -eq $templateNameSet) {
-    Write-Warning 'No enterprise template configured; only IDENTICAL sheet-scoped duplicates will be pruned.'
-  }
   Write-Host 'Pruning redundant sheet-scoped (shadow) names...'
-  $dedup = Remove-RedundantSheetScopedNames -TargetPath $OutputPath -AuthoritativeNames $templateNameSet
+  $dedup = Remove-RedundantSheetScopedNames -TargetPath $OutputPath
   Write-Host ("  Removed {0} shadow name(s); kept {1}." -f $dedup.Removed, $dedup.Kept) -ForegroundColor Green
   # No COM open follows in prune-only mode, so setting the recalc flag here is safe.
   [void] (Set-FullCalcOnLoad -TargetPath $OutputPath)
@@ -1202,7 +1174,7 @@ try {
   Mark-Phase 'save & close'
   # --- Prune redundant sheet-scoped defined names (post-save, via XML) --------
   if (-not $DryRun) {
-    $dedup = Remove-RedundantSheetScopedNames -TargetPath $OutputPath -AuthoritativeNames $templateNameSet
+    $dedup = Remove-RedundantSheetScopedNames -TargetPath $OutputPath
     $namesDeduped = [int] $dedup.Removed
     if ($namesDeduped -gt 0) {
       Write-Host ("Removed {0} redundant sheet-scoped defined name(s) (kept {1})." -f $namesDeduped, $dedup.Kept)

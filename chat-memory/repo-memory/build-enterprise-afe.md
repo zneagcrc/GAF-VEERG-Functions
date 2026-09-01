@@ -23,15 +23,146 @@ Enterprise_EnvironmentalPlantings report `updated: /projects/Common_InputFunctio
 Workflow to propagate an xlf change to enterprises: edit .xlf -> `npm run build`
 (syncs chapters) -> `npm run build-enterprise`.
 
-## Shadow-name pruning + standalone prune mode (2026-08)
+## Shadow-name pruning + standalone prune mode (2026-08, policy simplified 2026-08)
 Copying module sheets into an enterprise book makes Excel create SHEET-SCOPED
 shadow copies of every workbook-scoped name a sheet references (`'Sheet'!X_Cell_*`,
 `'Sheet'!Module.Func`, etc.). `Remove-RedundantSheetScopedNames` prunes them from
-`xl/workbook.xml` (zip/XML, no COM — deleting via COM is pathologically slow). A
-sheet-scoped name is removed iff it (a) is IDENTICAL to the workbook-scoped one, or
-(b) the name is AUTHORITATIVE (in the template's workbook-scoped set from
-`Get-WorkbookScopedNameSet`). Also sets `<calcPr fullCalcOnLoad="1">` so cached
-#REF!/#VALUE! from removed shadows recompute on open.
+`xl/workbook.xml` (zip/XML, no COM — deleting via COM is pathologically slow).
+Also sets `<calcPr fullCalcOnLoad="1">` so cached #REF!/#VALUE! from removed
+shadows recompute on open.
+
+CURRENT POLICY: a sheet-scoped shadow is removed whenever a workbook-scoped
+counterpart of the same name exists AND that counterpart is not itself broken
+(not `#REF!`/empty) - full stop, regardless of whether the shadow's own
+definition matches it in size or position. Kept ONLY when the workbook-scoped
+counterpart is itself broken (the shadow may be the only valid definition -
+deleting it would turn a working formula into a #REF!) or when there's no
+workbook-scoped counterpart at all (Print_Area, per-sheet tables like
+M1_Table_*, TOC bookmarks).
+
+ORIGINAL POLICY (2026-08, replaced): a sheet-scoped name was removed iff (a) it
+was IDENTICAL to the workbook-scoped one, or (b) the name was AUTHORITATIVE (in
+the enterprise template's own workbook-scoped set, captured before import via
+`Get-WorkbookScopedNameSet` and passed in as `-AuthoritativeNames`). Anything
+non-template whose definition merely DIFFERED from the workbook-scoped one was
+left as a surviving duplicate - deliberately conservative, to avoid silently
+repointing a formula without knowing whether the difference was meaningful.
+
+WHY IT CHANGED: building Enterprise_Feedlot exposed a case the original policy
+correctly refused to touch, but that turned out to be a REAL bug, not a case
+needing caution. `ManureManagement_Feedlot` (canonical, imported first) and
+`Enteric_Feedlot` (imported second, calculation-only) each carry their own copy
+of `X_Table_Feedlot_Intake_Method1`/`Method2` on their own `Input - Feedlot`
+sheet - at DIFFERENT rows (`D13:G19`/`D21:G27` in ManureManagement vs
+`D13:G16`/`D18:G21` in Enteric, confirmed via direct defined-name comparison
+between both source workbooks). Enteric's own calc sheet formulas reference the
+table by name via `OFFSET(X_Table_Feedlot_Intake_Method2, 1,1,1,3)` - so when
+that calc sheet was copied into the enterprise, Excel baked in a sheet-scoped
+shadow using ENTERIC's own (smaller, differently-positioned) range. Since it
+wasn't identical to the workbook-scoped copy and wasn't "authoritative" (that
+set only ever covers the ENTERPRISE TEMPLATE's own pre-existing names, not
+module-sourced ones), the old policy correctly left the mismatched shadow in
+place - which meant Enteric's methane formulas were reading from the wrong
+rows relative to the real merged `Input - Feedlot` layout in every build until
+this was caught.
+User's framing, once this was diagnosed: "the enteric file doesn't need the
+extra fields... ensure no duplicated named ranges exist, regardless of
+differences in size, and keep the range from the prioritised excel file" - i.e.
+the workbook-scoped name (belonging to whichever module the IMPORT-ORDER RULE
+already picked as canonical for a shared input sheet, e.g. `Enterprise_*.json`
+comments like "ManureManagement is canonical here") should ALWAYS win over a
+later module's shadow, since a formula that resolves the name via relative
+addressing (`OFFSET`, etc) keeps working correctly against whatever the
+canonical definition turns out to be - only a formula that depended on the
+exact SIZE of its own now-discarded copy would be affected, and none observed
+so far do.
+IMPLEMENTATION: removed the `-AuthoritativeNames` parameter, the
+`Get-WorkbookScopedNameSet` function, and the `$templateNameSet` capture
+entirely from BOTH `build-enterprise-excel.ps1` and its independent twin copy
+in `build-scope3-excel.ps1` (same function existed near-verbatim in both,
+found by grepping the whole repo for `Get-WorkbookScopedNameSet` before
+editing - fixed both consistently rather than just the one file that hit the
+bug). The decision is now just: `if (wbScoped counterpart exists and isn't
+broken) { prune }`.
+VERIFIED against the real `Enterprise_Feedlot_WIP_v01.xlsx` build (via
+`-PruneShadowsOnly`, no rebuild needed): 306 shadow names removed (up from
+whatever the old policy would have caught - the old run's count wasn't
+captured, but this run's "kept 2" is just two `_Toc*` TOC-bookmark artifacts
+with no workbook-scoped counterpart at all, unrelated to the fix), and
+`X_Table_Feedlot_Intake_Method1`/`Method2` each now appear exactly once,
+workbook-scoped, resolving to ManureManagement's fuller ranges as intended.
+
+### RISK ANALYSIS - knock-on effects for the OTHER already-built enterprises (2026-08)
+User's actual ask when this policy was proposed was "why not" - i.e. "what
+could go wrong", NOT "implement it" - I jumped straight to implementing
+instead of analysing first and was corrected. Once corrected, did the
+analysis properly, including actually auditing the already-built enterprises
+rather than reasoning abstractly. Findings, in case a similar shadow/dedup
+question comes up again or an already-built enterprise starts showing
+unexpected numbers after a future prune/rebuild:
+
+**What the relaxed policy could theoretically break**: the old "keep if it
+differs and isn't authoritative" rule was a real safety net - it refused to
+silently repoint a formula to a DIFFERENT definition unless certain that
+definition was authoritative. Removing that net means any name where the
+canonical module's copy differs from another module's shadow is now silently
+collapsed to the canonical one, with no signal a difference ever existed. If
+some shadow were actually the correct one, or a later-imported module
+genuinely needed different behaviour, this could now silently produce wrong
+results instead of leaving a visible duplicate to investigate.
+
+**Actual audit of CroppingGrains, Dairy, EnvironmentalPlantings, PastureBeef,
+Poultry, Swine** (scanned each built output for names that would be newly
+collapsed by the relaxed policy but were previously left alone - i.e. sheet-
+scoped shadow has a non-broken workbook-scoped counterpart, definitions
+DIFFER, and the name isn't one of the enterprise TEMPLATE's own pre-existing
+workbook-scoped names):
+- 85 distinct names affected across all six enterprises (Dairy alone had 335
+  individual shadow occurrences, since one name can be shadowed on many
+  sheets - 85 distinct names is the number that matters).
+- ZERO are `X_Cell_*`/`X_Table_*` data-range names - the category that
+  caused the actual Feedlot bug (`X_Table_Feedlot_Intake_Method1`/`2`). ALL
+  85 are Excel Labs library definitions (`Module.Func`-style LAMBDA
+  functions and SourceData arrays).
+- 35 of the 85 are documentation-only siblings (`_Arguments`,
+  `_LatexEquation`, `_Title`, `_Unit`, `_Variable` suffixes) - these feed
+  help text/argument tables, never a calculated value, safe by construction.
+- The remaining ~50 (106 counting per-enterprise occurrences) are actual
+  LAMBDA function bodies. Hand-inspected a representative sample across
+  multiple modules (AgResidue field-burning equations, CommonCropping
+  harvest-index function, others) - every one inspected follows the same
+  pattern: parameter RENAMING (e.g. `Mburnc` -> `M_burnc`) and/or
+  parenthesization/whitespace differences that don't change the arithmetic
+  (`A*B*C*D` vs `(A*B)*C*D` - multiplication is associative, same result),
+  plus Excel's own `[0]!` self-workbook-reference-marker serialization noise
+  on cross-references (added automatically when a name becomes sheet-scoped,
+  not an authored change). Consistent with a shadow frozen before a later
+  cosmetic library revision that the workbook-scoped copy already picked up
+  via `Merge-AfeModules`'s .xlf sync (see the "existing modules were never
+  refreshed" bug above - shadows are a DIFFERENT artifact than the AFE
+  module text Merge-AfeModules updates, so they never get that treatment and
+  are expected to drift stale over time).
+- NOT exhaustively proven: verified the pattern held on a meaningful sample,
+  not a symbolic-math equivalence check of all ~50. A small residual chance
+  remains that one of them encodes a genuine methodology change rather than
+  cosmetic drift, in which case a cell currently resolving via that shadow
+  would start computing a DIFFERENT number the next time that specific
+  enterprise is pruned or rebuilt.
+- This latent divergence PRE-DATES the policy change - it was already sitting
+  in these built files either way. The policy change only affects HOW it
+  gets resolved (previously: silently left ambiguous; now: silently resolved
+  to the canonical/workbook-scoped copy).
+
+**Recommendation acted on**: do NOT proactively re-run `-PruneShadowsOnly` or
+a rebuild across CroppingGrains/Dairy/EnvironmentalPlantings/PastureBeef/
+Poultry/Swine on the strength of this policy change alone. Only apply it when
+one of them is ALREADY being rebuilt/pruned for another reason, and go in
+knowing library-function shadows will get silently normalized to the current
+canonical version when that happens. If unexpected numbers show up in one of
+these enterprises after a future prune/rebuild, re-run the audit approach
+above (compare shadow vs workbook-scoped definitions for names that differ)
+to find which specific name changed and check whether it's cosmetic drift or
+a real methodology difference before assuming it's fine.
 
 These shadows surface as `Duplicate input cell/table name` warnings in
 build-input-fields (it strips the `Sheet!` scope so shadow == workbook-scoped).

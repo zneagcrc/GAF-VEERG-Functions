@@ -238,37 +238,17 @@ function Merge-AfeModules {
   return [pscustomobject]@{ Added = @($added); Updated = @($updated) }
 }
 
-function Get-WorkbookScopedNameSet {
-  param([string] $Path)
-
-  $set = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
-  $mainNs = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
-  $zip = [System.IO.Compression.ZipFile]::Open($Path, [System.IO.Compression.ZipArchiveMode]::Read)
-  try {
-    $entry = $zip.GetEntry('xl/workbook.xml')
-    if ($null -eq $entry) { return $set }
-    $reader = [System.IO.StreamReader]::new($entry.Open(), [System.Text.Encoding]::UTF8)
-    try { $xmlText = $reader.ReadToEnd() } finally { $reader.Dispose() }
-    $doc = New-Object System.Xml.XmlDocument
-    $doc.LoadXml($xmlText)
-    $ns = New-Object System.Xml.XmlNamespaceManager($doc.NameTable)
-    $ns.AddNamespace('x', $mainNs)
-    foreach ($n in @($doc.SelectNodes('//x:definedName', $ns))) {
-      if (-not [string]::IsNullOrEmpty($n.GetAttribute('localSheetId'))) { continue }
-      $nm = $n.GetAttribute('name')
-      if ([string]::IsNullOrEmpty($nm)) { continue }
-      $rt = $n.InnerText
-      if ([string]::IsNullOrWhiteSpace($rt) -or $rt -match '#REF!') { continue }
-      [void] $set.Add($nm)
-    }
-  } finally { $zip.Dispose() }
-  return $set
-}
-
 function Remove-RedundantSheetScopedNames {
+  # See the fuller docstring on the twin copy of this function in
+  # build-enterprise-excel.ps1. POLICY (2026-08, simplified): a sheet-scoped
+  # shadow is removed whenever a workbook-scoped counterpart exists and is not
+  # itself broken (#REF!/empty) - regardless of whether the shadow's own
+  # definition matches it in size or position. The workbook-scoped name always
+  # belongs to whichever source was imported/merged first, so it wins
+  # unconditionally; only a workbook-scoped counterpart that is itself broken
+  # leaves the (possibly good) shadow in place.
   param(
-    [string] $TargetPath,
-    [System.Collections.Generic.HashSet[string]] $AuthoritativeNames = $null
+    [string] $TargetPath
   )
 
   $result = [pscustomobject]@{ Removed = 0; Kept = 0 }
@@ -308,8 +288,9 @@ function Remove-RedundantSheetScopedNames {
       $nm = $n.GetAttribute('name')
       if ([string]::IsNullOrEmpty($nm)) { continue }
       if (-not $wbScoped.ContainsKey($nm)) { $kept++; continue }
-      $isAuthoritative = ($null -ne $AuthoritativeNames -and $AuthoritativeNames.Contains($nm))
-      if (-not $isAuthoritative -and $n.InnerText -ne $wbScoped[$nm]) { $kept++; continue }
+      $wbDef = $wbScoped[$nm]
+      $wbDefIsBroken = [string]::IsNullOrWhiteSpace($wbDef) -or $wbDef -match '#REF!'
+      if ($wbDefIsBroken) { $kept++; continue }
       [void] $definedNamesNode.RemoveChild($n)
       $removed++
     }
@@ -703,8 +684,6 @@ Write-Host ("Output   : {0}" -f $OutputPath)
 Write-Host ("Mode     : {0}" -f $(if ($DryRun) { 'DRY RUN' } else { 'BUILD' }))
 Write-Host ''
 
-# Capture the template's authoritative workbook-scoped names before import.
-$templateNameSet = Get-WorkbookScopedNameSet -Path $TemplatePath
 $templateNameMap = Get-WorkbookScopedNameMap -Path $TemplatePath
 
 # --- Resolve source workbooks ----------------------------------------------
@@ -1116,7 +1095,7 @@ try {
   $excel = $null
 
   # --- Prune redundant sheet-scoped shadow names (post-save, via XML) ---------
-  $dedup = Remove-RedundantSheetScopedNames -TargetPath $OutputPath -AuthoritativeNames $templateNameSet
+  $dedup = Remove-RedundantSheetScopedNames -TargetPath $OutputPath
   $namesDeduped = [int] $dedup.Removed
   if ($namesDeduped -gt 0) {
     Write-Host ("Removed {0} redundant sheet-scoped defined name(s) (kept {1})." -f $namesDeduped, $dedup.Kept)

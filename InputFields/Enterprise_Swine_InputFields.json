@@ -1,0 +1,3296 @@
+{
+	"schemaVersion": 1,
+	"generatedFrom": "Enterprise_Swine_WIP_v01.xlsx",
+	"generatedAt": "2026-08-31T00:15:49Z",
+	"InputCells": [
+		{
+			"CellName": "X_Cell_Site_FarmName",
+			"Label": "Farm name",
+			"CellType": "text"
+		},
+		{
+			"CellName": "X_Cell_Site_ReportingEntityName",
+			"Label": "Reporting entity name",
+			"CellType": "text"
+		},
+		{
+			"CellName": "X_Cell_Site_StartDate",
+			"Label": "Emissions calculation period start date",
+			"CellType": "date"
+		},
+		{
+			"CellName": "X_Cell_Site_EndDate",
+			"Label": "Emissions calculation period end date",
+			"CellType": "formula"
+		},
+		{
+			"CellName": "X_Cell_Enterprise_ProductionTimeframeStart",
+			"Label": "Production timeframe start",
+			"CellType": "number"
+		},
+		{
+			"CellName": "X_Cell_Enterprise_ProductionTimeframeEnd",
+			"Label": "Production timeframe end",
+			"CellType": "number"
+		},
+		{
+			"CellName": "X_Cell_Enterprise_LiveweightSold",
+			"Label": "Liveweight sold",
+			"CellType": "formula",
+			"Unit": "tonnes"
+		},
+		{
+			"CellName": "X_Cell_Enterprise_ManureProduced",
+			"Label": "Manure produced",
+			"CellType": "number",
+			"Unit": "tonnes"
+		},
+		{
+			"CellName": "X_Cell_Enterprise_PercentManureSold",
+			"Label": "Percent manure sold",
+			"CellType": "percent",
+			"Unit": "percent"
+		},
+		{
+			"CellName": "X_Cell_Enterprise_PercentManureFertiliserOwnFarm",
+			"Label": "Percent manure used as fertiliser on own farm",
+			"CellType": "percent",
+			"Unit": "percent"
+		},
+		{
+			"CellName": "X_Cell_Enterprise_PercentIncomeFromLiveweightSold",
+			"Label": "Percentage of income from liveweight sold",
+			"CellType": "percent",
+			"Unit": "percent"
+		},
+		{
+			"CellName": "X_Cell_Enterprise_PercentIncomeFromManureSold",
+			"Label": "Percentage of income from manure sold",
+			"CellType": "percent",
+			"Unit": "percent"
+		},
+		{
+			"CellName": "X_Cell_Site_State",
+			"Label": "State",
+			"CellType": "select",
+			"Options": {
+				"New South Wales": "New South Wales",
+				"ACT": "ACT",
+				"Victoria": "Victoria",
+				"Queensland": "Queensland",
+				"South Australia": "South Australia",
+				"Western Australia": "Western Australia",
+				"Tasmania": "Tasmania",
+				"Northern Territory": "Northern Territory"
+			}
+		},
+		{
+			"CellName": "X_Cell_Site_Region",
+			"Label": "Region (ABS Statistical area level 4) if state is WA",
+			"CellType": "select",
+			"Options": {
+				"Bunbury": "Bunbury",
+				"Mandurah": "Mandurah",
+				"Perth - Inner": "Perth - Inner",
+				"Perth - North East": "Perth - North East",
+				"Perth - North West": "Perth - North West",
+				"Perth - South East": "Perth - South East",
+				"Perth - South West": "Perth - South West",
+				"Western Australia - Wheat Belt": "Western Australia - Wheat Belt",
+				"Western Australia - Outback (North)": "Western Australia - Outback (North)",
+				"Western Australia - Outback (South)": "Western Australia - Outback (South)"
+			}
+		},
+		{
+			"CellName": "X_Cell_Site_LeachingZone",
+			"Label": "Leaching zone",
+			"CellType": "select",
+			"Options": {
+				"YES - In leaching zone": "YES - In leaching zone",
+				"NO - Not in leaching zone": "NO - Not in leaching zone"
+			}
+		},
+		{
+			"CellName": "X_Cell_Site_Elevation",
+			"Label": "Elevation",
+			"CellType": "number",
+			"Unit": "Meters"
+		},
+		{
+			"CellName": "X_Cell_Site_AverageTemperature",
+			"Label": "Average temperature for reporting period",
+			"CellType": "number",
+			"Unit": "Degrees celsius"
+		},
+		{
+			"CellName": "X_Cell_Site_TotalRainfall",
+			"Label": "Total rainfall for reporting period",
+			"CellType": "number",
+			"Unit": "Millimetres"
+		},
+		{
+			"CellName": "X_Cell_Site_PotentialEvapotranspiration",
+			"Label": "Potential evapotranspiration for reporting period",
+			"CellType": "number",
+			"Unit": "Millimetres"
+		},
+		{
+			"CellName": "X_Cell_Site_FrostDays",
+			"Label": "Number of frost days for reporting period",
+			"CellType": "number",
+			"Unit": "Days"
+		},
+		{
+			"CellName": "X_Cell_Site_MapPetRatio",
+			"Label": "MAP:PET ratio",
+			"CellType": "formula"
+		},
+		{
+			"CellName": "X_Cell_Site_RainfallZone",
+			"Label": "Rainfall zone",
+			"CellType": "formula"
+		},
+		{
+			"CellName": "X_Cell_Site_ClimateZone",
+			"Label": "Climate zone",
+			"CellType": "formula"
+		},
+		{
+			"CellName": "X_Cell_Site_WetOrDryClimateZone",
+			"Label": "Wet or dry climate zone",
+			"CellType": "formula"
+		},
+		{
+			"CellName": "X_Cell_Site_TemperatureZone",
+			"Label": "Temperature zone",
+			"CellType": "formula"
+		},
+		{
+			"CellName": "X_Cell_Swine_ProductionSystem",
+			"Label": "Production system",
+			"CellType": "select",
+			"Options": {
+				"Conventional housing": "Conventional housing",
+				"Deep litter housing": "Deep litter housing",
+				"Outdoor/free range": "Outdoor/free range"
+			}
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_AnaerobicLagoon_SolidsSeparated",
+			"Label": "Were solids separated from Anaerobic lagoon?",
+			"CellType": "select",
+			"Options": {
+				"Yes": "Yes",
+				"No": "No"
+			}
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_AnaerobicLagoon_AmountSeparated_Method1",
+			"Label": "Percent solids separated from Anaerobic lagoon (Method 1)",
+			"CellType": "percent"
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_AnaerobicLagoon_AmountSeparated_Method2",
+			"Label": "Percent solids separated from Anaerobic lagoon (Method 2)",
+			"CellType": "percent",
+			"CanOverWriteFormula": true
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_Drylot_SolidsSeparated",
+			"Label": "Were solids separated from Drylot (feed pad)?",
+			"CellType": "select",
+			"Options": {
+				"Yes": "Yes",
+				"No": "No"
+			}
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_Drylot_AmountSeparated_Method1",
+			"Label": "Percent solids separated from Drylot (feed pad) (Method 1)",
+			"CellType": "percent"
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_Drylot_AmountSeparated_Method2",
+			"Label": "Percent solids separated from Drylot (feed pad) (Method 2)",
+			"CellType": "percent",
+			"CanOverWriteFormula": true
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_DigesterCoveredLagoons_SolidsSeparated",
+			"Label": "Were solids separated from Digester / covered lagoons?",
+			"CellType": "select",
+			"Options": {
+				"Yes": "Yes",
+				"No": "No"
+			}
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_DigesterCoveredLagoons_AmountSeparated_Method1",
+			"Label": "Percent solids separated from Digester / covered lagoons (Method 1)",
+			"CellType": "percent"
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_DigesterCoveredLagoons_AmountSeparated_Method2",
+			"Label": "Percent solids separated from Digester / covered lagoons (Method 2)",
+			"CellType": "percent",
+			"CanOverWriteFormula": true
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_DeepLitter_SolidsSeparated",
+			"Label": "Were solids separated from Deep litter?",
+			"CellType": "select",
+			"Options": {
+				"Yes": "Yes",
+				"No": "No"
+			}
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_DeepLitter_AmountSeparated_Method1",
+			"Label": "Percent solids separated from Deep litter (Method 1)",
+			"CellType": "percent"
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_DeepLitter_AmountSeparated_Method2",
+			"Label": "Percent solids separated from Deep litter (Method 2)",
+			"CellType": "percent",
+			"CanOverWriteFormula": true
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_PitStorage_SolidsSeparated",
+			"Label": "Were solids separated from Pit storage?",
+			"CellType": "select",
+			"Options": {
+				"Yes": "Yes",
+				"No": "No"
+			}
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_PitStorage_AmountSeparated_Method1",
+			"Label": "Percent solids separated from Pit storage (Method 1)",
+			"CellType": "percent"
+		},
+		{
+			"CellName": "X_Cell_Swine_Stage1MMS_PitStorage_AmountSeparated_Method2",
+			"Label": "Percent solids separated from Pit storage (Method 2)",
+			"CellType": "percent",
+			"CanOverWriteFormula": true
+		},
+		{
+			"CellName": "X_Cell_Swine_ManureAppliedProductionSystem",
+			"Label": "Where manure was deposited on farm soils, what is the closest match?",
+			"CellType": "select",
+			"Options": {
+				"Pasture": "Pasture",
+				"Crop": "Crop"
+			}
+		},
+		{
+			"CellName": "X_Cell_Swine_ManureAppliedIrrigationMethod",
+			"Label": "Irrigation method",
+			"CellType": "select",
+			"Options": {
+				"Not irrigated": "Not irrigated",
+				"Drip irrigation": "Drip irrigation",
+				"Sprinkler irrigation": "Sprinkler irrigation",
+				"Surface irrigation": "Surface irrigation",
+				"Other irrigation": "Other irrigation"
+			}
+		},
+		{
+			"CellName": "X_Cell_Fuel_IsMetroLocation",
+			"Label": "Is the property in a Metropolitan location?",
+			"CellType": "select",
+			"Options": {
+				"Metro": "Metro",
+				"Non-metro": "Non-metro"
+			}
+		},
+		{
+			"CellName": "X_Cell_Electricity_CalculationMethod",
+			"Label": "How do you want to calculate electricity emissions?",
+			"CellType": "select",
+			"Options": {
+				"Location-based (simpler)": "Location-based (simpler)",
+				"Market-based (more complex)": "Market-based (more complex)"
+			}
+		},
+		{
+			"CellName": "X_Cell_Electricity_Location_AmountPurchasedInkWh",
+			"Label": "Amount purchased in kWh",
+			"CellType": "number",
+			"Unit": "kWh"
+		},
+		{
+			"CellName": "X_Cell_Electricity_Location_GridElectricityPurchasedFrom",
+			"Label": "Grid where electricity purchased from",
+			"CellType": "select",
+			"Options": {
+				"New South Wales": "New South Wales",
+				"ACT": "ACT",
+				"Victoria": "Victoria",
+				"Queensland": "Queensland",
+				"South Australia": "South Australia",
+				"Western Australia - South West Interconnected System (SWIS)": "Western Australia - South West Interconnected System (SWIS)",
+				"Western Australia - North Western Interconnected System (NWIS)": "Western Australia - North Western Interconnected System (NWIS)",
+				"Tasmania": "Tasmania",
+				"Northern Territory - Darwin Katherine Interconnected System (DKIS)": "Northern Territory - Darwin Katherine Interconnected System (DKIS)",
+				"National": "National"
+			}
+		},
+		{
+			"CellName": "X_Cell_Electricity_Market_AmountPurchasedExcludingGreenPower",
+			"Label": "Electricity purchased in kWh (excluding GreenPower providers)",
+			"CellType": "number",
+			"Unit": "kWh"
+		},
+		{
+			"CellName": "X_Cell_Electricity_Market_RenewablePowerPercentage",
+			"Label": "Renewable Power Percentage",
+			"CellType": "percent",
+			"Unit": "percent"
+		},
+		{
+			"CellName": "X_Cell_Electricity_Market_JurisdictionalRenewablePowerPercentage",
+			"Label": "Jurisdictional renewable power percentage (ACT only)",
+			"CellType": "percent",
+			"Unit": "percent"
+		},
+		{
+			"CellName": "X_Cell_Electricity_Market_AmountPurchasedGreenPower",
+			"Label": "Electricity purchased from an accredited GreenPower provider",
+			"CellType": "number",
+			"Unit": "kWh"
+		},
+		{
+			"CellName": "X_Cell_TotalElegibleVoluntarilySurrenderedRECs",
+			"Label": "Total elegible voluntarily surrendered RECs",
+			"CellType": "formula",
+			"Unit": "MWh"
+		},
+		{
+			"CellName": "X_Cell_TotalElegibleRECsForElectricityProducedOnSite",
+			"Label": "Total elegible RECs for electricity produced on-site and consumed by entity",
+			"CellType": "formula",
+			"Unit": "MWh"
+		},
+		{
+			"CellName": "X_Cell_FarmInputs_LickBlocks_DrySeasonMix",
+			"Label": "Lick block, dry season mix",
+			"CellType": "number",
+			"Unit": "kg"
+		},
+		{
+			"CellName": "X_Cell_FarmInputs_LickBlocks_Mineral",
+			"Label": "Lick block, mineral",
+			"CellType": "number",
+			"Unit": "kg"
+		},
+		{
+			"CellName": "X_Cell_FarmInputs_LickBlocks_Weaner",
+			"Label": "Lick block, weaner",
+			"CellType": "number",
+			"Unit": "kg"
+		},
+		{
+			"CellName": "X_Cell_FarmInputs_FeedRations_Chickens",
+			"Label": "Feed for chickens",
+			"CellType": "number",
+			"Unit": "kg"
+		},
+		{
+			"CellName": "X_Cell_FarmInputs_FeedRations_DairyCalves",
+			"Label": "Feed for dairy calves",
+			"CellType": "number",
+			"Unit": "kg"
+		},
+		{
+			"CellName": "X_Cell_FarmInputs_FeedRations_DairyCows",
+			"Label": "Feed for dairy cows",
+			"CellType": "number",
+			"Unit": "kg"
+		},
+		{
+			"CellName": "X_Cell_FarmInputs_FeedRations_Pigs",
+			"Label": "Feed for pigs",
+			"CellType": "number",
+			"Unit": "kg"
+		},
+		{
+			"CellName": "X_Cell_FarmInputs_Misc_AnimalEarTagsLarge",
+			"Label": "Animal ear tags (large)",
+			"CellType": "number",
+			"Unit": "tags"
+		},
+		{
+			"CellName": "X_Cell_FarmInputs_Misc_AnimalEarTagsSmall",
+			"Label": "Animal ear tags (small)",
+			"CellType": "number",
+			"Unit": "tags"
+		},
+		{
+			"CellName": "X_Cell_ManureSentOffsite_MassNitrogenManure_Method1",
+			"Label": "",
+			"CellType": "number",
+			"Unit": "kg N"
+		},
+		{
+			"CellName": "X_Cell_ManureSentOffsite_MassNitrogenManure_Method2",
+			"Label": "",
+			"CellType": "number",
+			"Unit": "kg N",
+			"CanOverWriteFormula": true
+		},
+		{
+			"CellName": "X_Cell_ManureSentOffsite_ManureProductionSystem",
+			"Label": "",
+			"CellType": "select",
+			"Options": {
+				"Pasture": "Pasture",
+				"Crop": "Crop"
+			}
+		},
+		{
+			"CellName": "X_Cell_ManureSentOffsite_ManureIrrigationMethod",
+			"Label": "",
+			"CellType": "select",
+			"Options": {
+				"Not irrigated": "Not irrigated",
+				"Drip irrigation": "Drip irrigation",
+				"Sprinkler irrigation": "Sprinkler irrigation",
+				"Surface irrigation": "Surface irrigation",
+				"Other irrigation": "Other irrigation"
+			}
+		},
+		{
+			"CellName": "X_Cell_Fertiliser_ProductionSystem",
+			"Label": "Production system",
+			"CellType": "select",
+			"Options": {
+				"Pasture": "Pasture",
+				"Crop": "Crop"
+			}
+		},
+		{
+			"CellName": "X_Cell_Fertiliser_CropType",
+			"Label": "Crop type",
+			"CellType": "select",
+			"Options": {
+				"Pasture": "Pasture",
+				"Grains": "Grains",
+				"Maize": "Maize",
+				"Cotton": "Cotton"
+			}
+		},
+		{
+			"CellName": "X_Cell_Fertiliser_IrrigationMethod",
+			"Label": "Irrigation method",
+			"CellType": "select",
+			"Options": {
+				"Not irrigated": "Not irrigated",
+				"Drip irrigation": "Drip irrigation",
+				"Sprinkler irrigation": "Sprinkler irrigation",
+				"Surface irrigation": "Surface irrigation",
+				"Other irrigation": "Other irrigation"
+			}
+		},
+		{
+			"CellName": "X_Cell_Fertiliser_AreaUnderCropping",
+			"Label": "Area under cropping",
+			"CellType": "number",
+			"Unit": "hectares"
+		}
+	],
+	"InputTables": [
+		{
+			"TableName": "X_Table_Result_ActivityPeriodEmissions_RowsToCols",
+			"MatrixType": "RowsToCols",
+			"NumberOfRows": 6,
+			"NumberOfCols": 3,
+			"ColumnNames": {
+				"1411To2PurchasedElectricity": "14.1.1-2 Purchased electricity (Location-based)",
+				"168": "16.8",
+				"1682": "16.8"
+			},
+			"Rows": {
+				"Row": {
+					"1411To2PurchasedElectricity": {
+						"Row": 2,
+						"Col": 1,
+						"Header": "14.1.1-2 Purchased electricity (Location-based)",
+						"CellType": "text",
+						"Unit": "Location-based"
+					},
+					"168": {
+						"Row": 2,
+						"Col": 2,
+						"Header": "16.8",
+						"CellType": "number"
+					},
+					"1682": {
+						"Row": 2,
+						"Col": 3,
+						"Header": "16.8",
+						"CellType": "number"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Result_CarbonRemovalsFromPlantings_RowsToCols",
+			"MatrixType": "RowsToCols",
+			"NumberOfRows": 7,
+			"NumberOfCols": 2,
+			"ColumnNames": {
+				"151011OtherCleaningChemicals": "15.10.1.1 Other: Cleaning chemicals",
+				"05051": "0.5051"
+			},
+			"Rows": {
+				"Row": {
+					"151011OtherCleaningChemicals": {
+						"Row": 2,
+						"Col": 1,
+						"Header": "15.10.1.1 Other: Cleaning chemicals",
+						"CellType": "text"
+					},
+					"05051": {
+						"Row": 2,
+						"Col": 2,
+						"Header": "0.5051",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_Enterprise_PlantingRemovals",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"PlantingName": "Planting name",
+				"TotalRemovedCO2": "Total removed CO2",
+				"PercentAllocatedToThisEnterprise": "Percent allocated to this enterprise",
+				"RemovalAllocatedToThisEnterprise": "Removal allocated to this enterprise"
+			},
+			"Rows": {
+				"Row": {
+					"PlantingName": {
+						"CellType": "text"
+					},
+					"TotalRemovedCO2": {
+						"CellType": "number"
+					},
+					"PercentAllocatedToThisEnterprise": {
+						"CellType": "percent"
+					},
+					"RemovalAllocatedToThisEnterprise": {
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_HerdMovement",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 3,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Boars": "Boars",
+				"Sows": "Sows",
+				"Gilts": "Gilts",
+				"Others": "Others"
+			},
+			"Cols": {
+				"Column": {
+					"AverageDurationOfStayBetween01Jan25And31Dec25": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Average duration of stay between 01 Jan 25 and 31 Dec 25",
+						"CellType": "number"
+					},
+					"AverageNumberOfHeadBetween01Jan25And31Dec25": {
+						"Row": 3,
+						"Col": 2,
+						"Label": "Average number of head between 01 Jan 25 and 31 Dec 25",
+						"CellType": "number"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_FeedIntake_Method1",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 2,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Boars": "Boars",
+				"Sows": "Sows",
+				"Gilts": "Gilts",
+				"Others": "Others"
+			},
+			"Cols": {
+				"Column": {
+					"FeedIntake": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Feed intake",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_FeedIntake_Method2",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 2,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Boars": "Boars",
+				"Sows": "Sows",
+				"Gilts": "Gilts",
+				"Others": "Others"
+			},
+			"Cols": {
+				"Column": {
+					"FeedIntake": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Feed intake",
+						"CellType": "number",
+						"CanOverWriteFormula": true
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_ManureProduction_Method1",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 3,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Boars": "Boars",
+				"Sows": "Sows",
+				"Gilts": "Gilts",
+				"Others": "Others"
+			},
+			"Cols": {
+				"Column": {
+					"VolatileSolidsProducedPerHeadPerDay": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Volatile solids produced per head per day",
+						"CellType": "formula"
+					},
+					"NitrogenProducedInSwineWastePerHeadPerDay": {
+						"Row": 3,
+						"Col": 2,
+						"Label": "Nitrogen produced in swine waste per head per day",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_ManureProduction_Method2",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 3,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Boars": "Boars",
+				"Sows": "Sows",
+				"Gilts": "Gilts",
+				"Others": "Others"
+			},
+			"Cols": {
+				"Column": {
+					"VolatileSolidsProducedPerHeadPerDay": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Volatile solids produced per head per day",
+						"CellType": "number",
+						"CanOverWriteFormula": true
+					},
+					"NitrogenProducedInSwineWastePerHeadPerDay": {
+						"Row": 3,
+						"Col": 2,
+						"Label": "Nitrogen produced in swine waste per head per day",
+						"CellType": "number",
+						"CanOverWriteFormula": true
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage1MMS_AnaerobicLagoon",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 2,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col2": "",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"AnaerobicLagoon": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Anaerobic lagoon",
+						"CellType": "percent"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage1MMS_Drylot",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 2,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col2": "",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"Drylot": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Drylot (feed pad)",
+						"CellType": "percent",
+						"Unit": "feed pad"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage1MMS_DigesterCoveredLagoons",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 2,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col2": "",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"DigesterCoveredLagoons": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Digester / covered lagoons",
+						"CellType": "percent"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage1MMS_DeepLitter",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 2,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col2": "",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"DeepLitter": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Deep litter",
+						"CellType": "percent"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage1MMS_PitStorage",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 2,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col2": "",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"PitStorage": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Pit storage",
+						"CellType": "percent"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage1MMS_SolidStorage",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 2,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col2": "",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"SolidStorage": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Solid storage (before solid separation)",
+						"CellType": "percent",
+						"Unit": "before solid separation"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_AnaerobicLagoon",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 5,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"ManureWasSentToThisMMSPleaseCompleteThisSection": "Manure was sent to this MMS, please complete this section.",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"DigesterCoveredLagoons": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Digester / covered lagoons",
+						"CellType": "percent"
+					},
+					"DeepLitter": {
+						"Row": 3,
+						"Col": 2,
+						"Label": "Deep litter",
+						"CellType": "percent"
+					},
+					"PitStorage": {
+						"Row": 4,
+						"Col": 2,
+						"Label": "Pit storage",
+						"CellType": "percent"
+					},
+					"DirectApplication": {
+						"Row": 5,
+						"Col": 2,
+						"Label": "Direct application",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_AnaerobicLagoon_Destinations",
+			"MatrixType": "RowsToCols",
+			"NumberOfRows": 5,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col1": "",
+				"Sold": "Sold",
+				"FertForOwnFarm": "Fert for own farm (eg crop)",
+				"DirectApplicationToSoil": "Direct application to soil"
+			},
+			"Rows": {
+				"Row": {
+					"Col1": {
+						"Row": 2,
+						"Col": 1,
+						"CellType": "number"
+					},
+					"Sold": {
+						"Row": 2,
+						"Col": 2,
+						"Header": "Sold",
+						"CellType": "percent"
+					},
+					"FertForOwnFarm": {
+						"Row": 2,
+						"Col": 3,
+						"Header": "Fert for own farm (eg crop)",
+						"CellType": "percent",
+						"Unit": "eg crop"
+					},
+					"DirectApplicationToSoil": {
+						"Row": 2,
+						"Col": 4,
+						"Header": "Direct application to soil",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_Drylot",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 6,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"ManureWasSentToThisMMSPleaseCompleteThisSection": "Manure was sent to this MMS, please complete this section.",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"AnaerobicLagoon": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Anaerobic lagoon",
+						"CellType": "percent"
+					},
+					"DigesterCoveredLagoons": {
+						"Row": 3,
+						"Col": 2,
+						"Label": "Digester / covered lagoons",
+						"CellType": "percent"
+					},
+					"DeepLitter": {
+						"Row": 4,
+						"Col": 2,
+						"Label": "Deep litter",
+						"CellType": "percent"
+					},
+					"PitStorage": {
+						"Row": 5,
+						"Col": 2,
+						"Label": "Pit storage",
+						"CellType": "percent"
+					},
+					"DirectApplication": {
+						"Row": 6,
+						"Col": 2,
+						"Label": "Direct application",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_Drylot_Destinations",
+			"MatrixType": "RowsToCols",
+			"NumberOfRows": 6,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col1": "",
+				"Sold": "Sold",
+				"FertForOwnFarm": "Fert for own farm (eg crop)",
+				"DirectApplicationToSoil": "Direct application to soil"
+			},
+			"Rows": {
+				"Row": {
+					"Col1": {
+						"Row": 2,
+						"Col": 1,
+						"CellType": "number"
+					},
+					"Sold": {
+						"Row": 2,
+						"Col": 2,
+						"Header": "Sold",
+						"CellType": "percent"
+					},
+					"FertForOwnFarm": {
+						"Row": 2,
+						"Col": 3,
+						"Header": "Fert for own farm (eg crop)",
+						"CellType": "percent",
+						"Unit": "eg crop"
+					},
+					"DirectApplicationToSoil": {
+						"Row": 2,
+						"Col": 4,
+						"Header": "Direct application to soil",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_DigesterCoveredLagoons",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 5,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"ManureWasSentToThisMMSPleaseCompleteThisSection": "Manure was sent to this MMS, please complete this section.",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"AnaerobicLagoon": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Anaerobic lagoon",
+						"CellType": "percent"
+					},
+					"DeepLitter": {
+						"Row": 3,
+						"Col": 2,
+						"Label": "Deep litter",
+						"CellType": "percent"
+					},
+					"PitStorage": {
+						"Row": 4,
+						"Col": 2,
+						"Label": "Pit storage",
+						"CellType": "percent"
+					},
+					"DirectApplication": {
+						"Row": 5,
+						"Col": 2,
+						"Label": "Direct application",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_DigesterCoveredLagoons_Destinations",
+			"MatrixType": "RowsToCols",
+			"NumberOfRows": 5,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col1": "",
+				"Sold": "Sold",
+				"FertForOwnFarm": "Fert for own farm (eg crop)",
+				"DirectApplicationToSoil": "Direct application to soil"
+			},
+			"Rows": {
+				"Row": {
+					"Col1": {
+						"Row": 2,
+						"Col": 1,
+						"CellType": "number"
+					},
+					"Sold": {
+						"Row": 2,
+						"Col": 2,
+						"Header": "Sold",
+						"CellType": "percent"
+					},
+					"FertForOwnFarm": {
+						"Row": 2,
+						"Col": 3,
+						"Header": "Fert for own farm (eg crop)",
+						"CellType": "percent",
+						"Unit": "eg crop"
+					},
+					"DirectApplicationToSoil": {
+						"Row": 2,
+						"Col": 4,
+						"Header": "Direct application to soil",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_DeepLitter",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 5,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"ManureWasSentToThisMMSPleaseCompleteThisSection": "Manure was sent to this MMS, please complete this section.",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"AnaerobicLagoon": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Anaerobic lagoon",
+						"CellType": "percent"
+					},
+					"DigesterCoveredLagoons": {
+						"Row": 3,
+						"Col": 2,
+						"Label": "Digester / covered lagoons",
+						"CellType": "percent"
+					},
+					"PitStorage": {
+						"Row": 4,
+						"Col": 2,
+						"Label": "Pit storage",
+						"CellType": "percent"
+					},
+					"DirectApplication": {
+						"Row": 5,
+						"Col": 2,
+						"Label": "Direct application",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_DeepLitter_Destinations",
+			"MatrixType": "RowsToCols",
+			"NumberOfRows": 5,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col1": "",
+				"Sold": "Sold",
+				"FertForOwnFarm": "Fert for own farm (eg crop)",
+				"DirectApplicationToSoil": "Direct application to soil"
+			},
+			"Rows": {
+				"Row": {
+					"Col1": {
+						"Row": 2,
+						"Col": 1,
+						"CellType": "number"
+					},
+					"Sold": {
+						"Row": 2,
+						"Col": 2,
+						"Header": "Sold",
+						"CellType": "percent"
+					},
+					"FertForOwnFarm": {
+						"Row": 2,
+						"Col": 3,
+						"Header": "Fert for own farm (eg crop)",
+						"CellType": "percent",
+						"Unit": "eg crop"
+					},
+					"DirectApplicationToSoil": {
+						"Row": 2,
+						"Col": 4,
+						"Header": "Direct application to soil",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_PitStorage",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 5,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"ManureWasSentToThisMMSPleaseCompleteThisSection": "Manure was sent to this MMS, please complete this section.",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"AnaerobicLagoon": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Anaerobic lagoon",
+						"CellType": "percent"
+					},
+					"DigesterCoveredLagoons": {
+						"Row": 3,
+						"Col": 2,
+						"Label": "Digester / covered lagoons",
+						"CellType": "percent"
+					},
+					"DeepLitter": {
+						"Row": 4,
+						"Col": 2,
+						"Label": "Deep litter",
+						"CellType": "percent"
+					},
+					"DirectApplication": {
+						"Row": 5,
+						"Col": 2,
+						"Label": "Direct application",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_PitStorage_Destinations",
+			"MatrixType": "RowsToCols",
+			"NumberOfRows": 5,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col1": "",
+				"Sold": "Sold",
+				"FertForOwnFarm": "Fert for own farm (eg crop)",
+				"DirectApplicationToSoil": "Direct application to soil"
+			},
+			"Rows": {
+				"Row": {
+					"Col1": {
+						"Row": 2,
+						"Col": 1,
+						"CellType": "number"
+					},
+					"Sold": {
+						"Row": 2,
+						"Col": 2,
+						"Header": "Sold",
+						"CellType": "percent"
+					},
+					"FertForOwnFarm": {
+						"Row": 2,
+						"Col": 3,
+						"Header": "Fert for own farm (eg crop)",
+						"CellType": "percent",
+						"Unit": "eg crop"
+					},
+					"DirectApplicationToSoil": {
+						"Row": 2,
+						"Col": 4,
+						"Header": "Direct application to soil",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_SolidStorage",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 6,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"ManureWasSentToThisMMSPleaseCompleteThisSection": "Manure was sent to this MMS, please complete this section.",
+				"Col3": "",
+				"Col4": "",
+				"Col5": ""
+			},
+			"Cols": {
+				"Column": {
+					"AnaerobicLagoon": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Anaerobic lagoon",
+						"CellType": "percent"
+					},
+					"DigesterCoveredLagoons": {
+						"Row": 3,
+						"Col": 2,
+						"Label": "Digester / covered lagoons",
+						"CellType": "percent"
+					},
+					"DeepLitter": {
+						"Row": 4,
+						"Col": 2,
+						"Label": "Deep litter",
+						"CellType": "percent"
+					},
+					"PitStorage": {
+						"Row": 5,
+						"Col": 2,
+						"Label": "Pit storage",
+						"CellType": "percent"
+					},
+					"DirectApplication": {
+						"Row": 6,
+						"Col": 2,
+						"Label": "Direct application",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_Stage2MMS_From_SolidStorage_Destinations",
+			"MatrixType": "RowsToCols",
+			"NumberOfRows": 6,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Col1": "",
+				"Sold": "Sold",
+				"FertForOwnFarm": "Fert for own farm (eg crop)",
+				"DirectApplicationToSoil": "Direct application to soil"
+			},
+			"Rows": {
+				"Row": {
+					"Col1": {
+						"Row": 2,
+						"Col": 1,
+						"CellType": "number"
+					},
+					"Sold": {
+						"Row": 2,
+						"Col": 2,
+						"Header": "Sold",
+						"CellType": "percent"
+					},
+					"FertForOwnFarm": {
+						"Row": 2,
+						"Col": 3,
+						"Header": "Fert for own farm (eg crop)",
+						"CellType": "percent",
+						"Unit": "eg crop"
+					},
+					"DirectApplicationToSoil": {
+						"Row": 2,
+						"Col": 4,
+						"Header": "Direct application to soil",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_LivestockSales",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 6,
+			"ColumnNames": {
+				"TransactionName": "Transaction name",
+				"Class": "Class (select)",
+				"SaleDate": "Sale date",
+				"HeadSold": "Head sold",
+				"AverageWeightPerHead": "Average weight per head (kg)",
+				"TotalLiveweightSold": "Total liveweight sold"
+			},
+			"Rows": {
+				"Row": {
+					"TransactionName": {
+						"CellType": "text"
+					},
+					"Class": {
+						"CellType": "select",
+						"Options": {
+							"Boars": "Boars",
+							"Sows": "Sows",
+							"Gilts": "Gilts",
+							"Others": "Others"
+						}
+					},
+					"SaleDate": {
+						"CellType": "date"
+					},
+					"HeadSold": {
+						"CellType": "number"
+					},
+					"AverageWeightPerHead": {
+						"CellType": "number",
+						"Unit": "kg"
+					},
+					"TotalLiveweightSold": {
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_LivestockPurchases_Pigs",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 5,
+			"ColumnNames": {
+				"TransactionName": "Transaction name",
+				"Class": "Class (select)",
+				"Quantity": "Quantity (head)",
+				"LiveweightMethod1": "Liveweight (kg/head) Method 1",
+				"LiveweightMethod2": "Liveweight (kg/head) Method 2"
+			},
+			"Rows": {
+				"Row": {
+					"TransactionName": {
+						"CellType": "text"
+					},
+					"Class": {
+						"CellType": "select",
+						"Options": {
+							"Sows": "Sows",
+							"Boars": "Boars",
+							"Gilts": "Gilts",
+							"Slaughter pigs": "Slaughter pigs",
+							"Slaughter pigs at turnoff": "Slaughter pigs at turnoff"
+						}
+					},
+					"Quantity": {
+						"CellType": "number",
+						"Unit": "head"
+					},
+					"LiveweightMethod1": {
+						"CellType": "formula",
+						"Unit": "kg/head"
+					},
+					"LiveweightMethod2": {
+						"CellType": "number",
+						"Unit": "kg/head"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_Fuel",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 7,
+			"ColumnNames": {
+				"FuelUse": "Fuel use (select)",
+				"FuelType": "Fuel type (select)",
+				"AmountPurchased": "Amount purchased",
+				"AmountUnit": "Amount unit",
+				"PercentConsumed": "Percent consumed",
+				"AmountConsumed": "Amount consumed",
+				"AmountConsumedUnit": "Amount consumed unit"
+			},
+			"Rows": {
+				"Row": {
+					"FuelUse": {
+						"CellType": "select",
+						"Options": {
+							"Generators": "Generators",
+							"Power standalone machinery or heating": "Power standalone machinery or heating",
+							"Aviation": "Aviation",
+							"Cars and light commercial vehicles": "Cars and light commercial vehicles",
+							"Off-road Agriculture and forestry equipment": "Off-road Agriculture and forestry equipment",
+							"Vessels": "Vessels"
+						}
+					},
+					"FuelType": {
+						"CellType": "select",
+						"DependentOn": "FuelUse",
+						"Options": {
+							"Generators": {
+								"Petrol": "Petrol",
+								"Diesel": "Diesel",
+								"Liquefied petroleum gas (LPG)": "Liquefied petroleum gas (LPG)",
+								"Biodiesel": "Biodiesel",
+								"Ethanol": "Ethanol",
+								"Other biofuels": "Other biofuels",
+								"Renewable diesel": "Renewable diesel"
+							},
+							"Power standalone machinery or heating": {
+								"Petrol": "Petrol",
+								"Diesel": "Diesel",
+								"Liquefied petroleum gas (LPG)": "Liquefied petroleum gas (LPG)",
+								"Biodiesel": "Biodiesel",
+								"Ethanol": "Ethanol",
+								"Other biofuels": "Other biofuels",
+								"Renewable diesel": "Renewable diesel",
+								"Natural gas (via pipeline) in GJ": "Natural gas (via pipeline) in GJ",
+								"Town gas in GJ": "Town gas in GJ"
+							},
+							"Aviation": {
+								"Avgas": "Avgas",
+								"Jet A1, Jet B": "Jet A1, Jet B",
+								"Renewable aviation kerosene": "Renewable aviation kerosene"
+							},
+							"Cars and light commercial vehicles": {
+								"Petrol": "Petrol",
+								"Diesel": "Diesel",
+								"Liquefied petroleum gas (LPG)": "Liquefied petroleum gas (LPG)",
+								"Fuel oil": "Fuel oil",
+								"Ethanol": "Ethanol",
+								"Biodiesel": "Biodiesel",
+								"Renewable diesel": "Renewable diesel",
+								"Other biofuels": "Other biofuels"
+							},
+							"Off-road Agriculture and forestry equipment": {
+								"Diesel": "Diesel"
+							},
+							"Vessels": {
+								"Petrol": "Petrol",
+								"Diesel": "Diesel",
+								"Fuel oil": "Fuel oil"
+							}
+						}
+					},
+					"AmountPurchased": {
+						"CellType": "number"
+					},
+					"AmountUnit": {
+						"CellType": "formula"
+					},
+					"PercentConsumed": {
+						"CellType": "formula"
+					},
+					"AmountConsumed": {
+						"CellType": "formula"
+					},
+					"AmountConsumedUnit": {
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_RECSurrendered",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 5,
+			"ColumnNames": {
+				"Source": "Source (select)",
+				"GenerationDate": "Generation date",
+				"NumberOfCertificates": "Number of certificates",
+				"MWh": "MWh",
+				"Elegibility": "Elegibility"
+			},
+			"Rows": {
+				"Row": {
+					"Source": {
+						"CellType": "select",
+						"Options": {
+							"Purchased certificate": "Purchased certificate",
+							"Issued for generated electricity": "Issued for generated electricity"
+						}
+					},
+					"GenerationDate": {
+						"CellType": "date"
+					},
+					"NumberOfCertificates": {
+						"CellType": "number"
+					},
+					"MWh": {
+						"CellType": "formula"
+					},
+					"Elegibility": {
+						"CellType": "formula"
+					}
+				}
+			},
+			"FixedRows": true,
+			"NumberOfRows": 3,
+			"RowLabels": {
+				"DecCerts": "Dec 2020 certs",
+				"JanCerts": "Jan 2022 certs",
+				"Certs": "2024 certs"
+			}
+		},
+		{
+			"TableName": "Table_Input_RECConsumedByEntity",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 5,
+			"ColumnNames": {
+				"Source": "Source",
+				"GenerationDate": "Generation date",
+				"NumberOfCertificates": "Number of certificates",
+				"MWh": "MWh",
+				"Elegibility": "Elegibility"
+			},
+			"Rows": {
+				"Row": {
+					"Source": {
+						"CellType": "formula"
+					},
+					"GenerationDate": {
+						"CellType": "date"
+					},
+					"NumberOfCertificates": {
+						"CellType": "number"
+					},
+					"MWh": {
+						"CellType": "formula"
+					},
+					"Elegibility": {
+						"CellType": "formula"
+					}
+				}
+			},
+			"FixedRows": true,
+			"NumberOfRows": 3,
+			"RowLabels": {
+				"MayGenerated": "May 2022 generated",
+				"Jul24CertsGenerated": "Jul 24 certs generated",
+				"45597": "45597"
+			}
+		},
+		{
+			"TableName": "Table_Input_ChemicalsCleaning",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 3,
+			"ColumnNames": {
+				"ProductName": "Product name",
+				"Type": "Type (select)",
+				"QuantityPurchased": "Quantity purchased (kg)"
+			},
+			"Rows": {
+				"Row": {
+					"ProductName": {
+						"CellType": "text"
+					},
+					"Type": {
+						"CellType": "select",
+						"Options": {
+							"Alkaline cleaner": "Alkaline cleaner",
+							"Bleach": "Bleach",
+							"Phosphoric acid": "Phosphoric acid"
+						}
+					},
+					"QuantityPurchased": {
+						"CellType": "number",
+						"Unit": "kg"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_ServicesAndContractors",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"ServiceProviderContractor": "Service provider / contractor",
+				"Activity": "Activity",
+				"TotalAmount": "Total amount",
+				"AmountUnit": "Amount unit"
+			},
+			"Rows": {
+				"Row": {
+					"ServiceProviderContractor": {
+						"CellType": "text"
+					},
+					"Activity": {
+						"CellType": "text"
+					},
+					"TotalAmount": {
+						"CellType": "number"
+					},
+					"AmountUnit": {
+						"CellType": "select",
+						"Options": {
+							"Hour": "Hour",
+							"Hectare": "Hectare"
+						}
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_UncategorisedProductsServices",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 3,
+			"ColumnNames": {
+				"ProductServiceName": "Product / service name",
+				"Amount": "Amount",
+				"AmountUnit": "Amount unit"
+			},
+			"Rows": {
+				"Row": {
+					"ProductServiceName": {
+						"CellType": "text"
+					},
+					"Amount": {
+						"CellType": "number"
+					},
+					"AmountUnit": {
+						"CellType": "text"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_FeedBlends",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 14,
+			"ColumnNames": {
+				"FeedBlendName": "Feed blend name",
+				"AmountFed": "Amount fed (kg)",
+				"Ingredient1": "Ingredient 1 (select)",
+				"Ingredient1SourceRegion": "Ingredient 1 source region",
+				"Ingredient1Percent": "Ingredient 1 percent",
+				"Ingredient2": "Ingredient 2 (select)",
+				"Ingredient2SourceRegion": "Ingredient 2 source region",
+				"Ingredient2Percent": "Ingredient 2 percent",
+				"Ingredient3": "Ingredient 3 (select)",
+				"Ingredient3SourceRegion": "Ingredient 3 source region",
+				"Ingredient3Percent": "Ingredient 3 percent",
+				"Ingredient4": "Ingredient 4 (select)",
+				"Ingredient4SourceRegion": "Ingredient 4 source region",
+				"Ingredient4Percent": "Ingredient 4 percent"
+			},
+			"Rows": {
+				"Row": {
+					"FeedBlendName": {
+						"CellType": "text"
+					},
+					"AmountFed": {
+						"CellType": "number",
+						"Unit": "kg"
+					},
+					"Ingredient1": {
+						"CellType": "select",
+						"Options": {
+							"Barley grain": "Barley grain",
+							"Maize grain": "Maize grain",
+							"Sorghum grain": "Sorghum grain",
+							"Wheat grain": "Wheat grain",
+							"Cereal hay": "Cereal hay",
+							"Cereal silage": "Cereal silage",
+							"Lucerne hay": "Lucerne hay",
+							"Maize silage": "Maize silage",
+							"Oaten hay": "Oaten hay",
+							"Pasture hay": "Pasture hay",
+							"Canola meal": "Canola meal",
+							"Meat meal": "Meat meal",
+							"Soybean meal": "Soybean meal",
+							"Wheat bran": "Wheat bran",
+							"Bentonite": "Bentonite",
+							"Canola oil": "Canola oil",
+							"Cotton seed": "Cotton seed",
+							"Molasses": "Molasses"
+						}
+					},
+					"Ingredient1SourceRegion": {
+						"CellType": "select",
+						"DependentOn": "Ingredient1",
+						"Options": {
+							"Barleygrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Maizegrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Sorghumgrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC"
+							},
+							"Wheatgrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Cerealhay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Cerealsilage": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC"
+							},
+							"Lucernehay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC"
+							},
+							"Maizesilage": "n/a",
+							"Oatenhay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Pasturehay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Canolameal": {
+								"Australia": "Australia"
+							},
+							"Meatmeal": {
+								"Australia": "Australia"
+							},
+							"Soybeanmeal": {
+								"Brazil": "Brazil"
+							},
+							"Wheatbran": {
+								"Australia": "Australia"
+							},
+							"Bentonite": {
+								"Australia": "Australia"
+							},
+							"Canolaoil": {
+								"Australia": "Australia"
+							},
+							"Cottonseed": {
+								"Australia": "Australia"
+							},
+							"Molasses": {
+								"QLD": "QLD"
+							}
+						}
+					},
+					"Ingredient1Percent": {
+						"CellType": "percent"
+					},
+					"Ingredient2": {
+						"CellType": "select",
+						"Options": {
+							"Barley grain": "Barley grain",
+							"Maize grain": "Maize grain",
+							"Sorghum grain": "Sorghum grain",
+							"Wheat grain": "Wheat grain",
+							"Cereal hay": "Cereal hay",
+							"Cereal silage": "Cereal silage",
+							"Lucerne hay": "Lucerne hay",
+							"Maize silage": "Maize silage",
+							"Oaten hay": "Oaten hay",
+							"Pasture hay": "Pasture hay",
+							"Canola meal": "Canola meal",
+							"Meat meal": "Meat meal",
+							"Soybean meal": "Soybean meal",
+							"Wheat bran": "Wheat bran",
+							"Bentonite": "Bentonite",
+							"Canola oil": "Canola oil",
+							"Cotton seed": "Cotton seed",
+							"Molasses": "Molasses"
+						}
+					},
+					"Ingredient2SourceRegion": {
+						"CellType": "select",
+						"DependentOn": "Ingredient2",
+						"Options": {
+							"Barleygrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Maizegrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Sorghumgrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC"
+							},
+							"Wheatgrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Cerealhay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Cerealsilage": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC"
+							},
+							"Lucernehay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC"
+							},
+							"Maizesilage": "n/a",
+							"Oatenhay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Pasturehay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Canolameal": {
+								"Australia": "Australia"
+							},
+							"Meatmeal": {
+								"Australia": "Australia"
+							},
+							"Soybeanmeal": {
+								"Brazil": "Brazil"
+							},
+							"Wheatbran": {
+								"Australia": "Australia"
+							},
+							"Bentonite": {
+								"Australia": "Australia"
+							},
+							"Canolaoil": {
+								"Australia": "Australia"
+							},
+							"Cottonseed": {
+								"Australia": "Australia"
+							},
+							"Molasses": {
+								"QLD": "QLD"
+							}
+						}
+					},
+					"Ingredient2Percent": {
+						"CellType": "percent"
+					},
+					"Ingredient3": {
+						"CellType": "select",
+						"Options": {
+							"Barley grain": "Barley grain",
+							"Maize grain": "Maize grain",
+							"Sorghum grain": "Sorghum grain",
+							"Wheat grain": "Wheat grain",
+							"Cereal hay": "Cereal hay",
+							"Cereal silage": "Cereal silage",
+							"Lucerne hay": "Lucerne hay",
+							"Maize silage": "Maize silage",
+							"Oaten hay": "Oaten hay",
+							"Pasture hay": "Pasture hay",
+							"Canola meal": "Canola meal",
+							"Meat meal": "Meat meal",
+							"Soybean meal": "Soybean meal",
+							"Wheat bran": "Wheat bran",
+							"Bentonite": "Bentonite",
+							"Canola oil": "Canola oil",
+							"Cotton seed": "Cotton seed",
+							"Molasses": "Molasses"
+						}
+					},
+					"Ingredient3SourceRegion": {
+						"CellType": "select",
+						"DependentOn": "Ingredient3",
+						"Options": {
+							"Barleygrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Maizegrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Sorghumgrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC"
+							},
+							"Wheatgrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Cerealhay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Cerealsilage": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC"
+							},
+							"Lucernehay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC"
+							},
+							"Maizesilage": "n/a",
+							"Oatenhay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Pasturehay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Canolameal": {
+								"Australia": "Australia"
+							},
+							"Meatmeal": {
+								"Australia": "Australia"
+							},
+							"Soybeanmeal": {
+								"Brazil": "Brazil"
+							},
+							"Wheatbran": {
+								"Australia": "Australia"
+							},
+							"Bentonite": {
+								"Australia": "Australia"
+							},
+							"Canolaoil": {
+								"Australia": "Australia"
+							},
+							"Cottonseed": {
+								"Australia": "Australia"
+							},
+							"Molasses": {
+								"QLD": "QLD"
+							}
+						}
+					},
+					"Ingredient3Percent": {
+						"CellType": "percent"
+					},
+					"Ingredient4": {
+						"CellType": "select",
+						"Options": {
+							"Barley grain": "Barley grain",
+							"Maize grain": "Maize grain",
+							"Sorghum grain": "Sorghum grain",
+							"Wheat grain": "Wheat grain",
+							"Cereal hay": "Cereal hay",
+							"Cereal silage": "Cereal silage",
+							"Lucerne hay": "Lucerne hay",
+							"Maize silage": "Maize silage",
+							"Oaten hay": "Oaten hay",
+							"Pasture hay": "Pasture hay",
+							"Canola meal": "Canola meal",
+							"Meat meal": "Meat meal",
+							"Soybean meal": "Soybean meal",
+							"Wheat bran": "Wheat bran",
+							"Bentonite": "Bentonite",
+							"Canola oil": "Canola oil",
+							"Cotton seed": "Cotton seed",
+							"Molasses": "Molasses"
+						}
+					},
+					"Ingredient4SourceRegion": {
+						"CellType": "select",
+						"DependentOn": "Ingredient4",
+						"Options": {
+							"Barleygrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Maizegrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Sorghumgrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC"
+							},
+							"Wheatgrain": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"NT": "NT",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Cerealhay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Cerealsilage": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC"
+							},
+							"Lucernehay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC"
+							},
+							"Maizesilage": "n/a",
+							"Oatenhay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Pasturehay": {
+								"Australia": "Australia",
+								"NSW": "NSW",
+								"QLD": "QLD",
+								"SA": "SA",
+								"TAS": "TAS",
+								"VIC": "VIC",
+								"WA": "WA"
+							},
+							"Canolameal": {
+								"Australia": "Australia"
+							},
+							"Meatmeal": {
+								"Australia": "Australia"
+							},
+							"Soybeanmeal": {
+								"Brazil": "Brazil"
+							},
+							"Wheatbran": {
+								"Australia": "Australia"
+							},
+							"Bentonite": {
+								"Australia": "Australia"
+							},
+							"Canolaoil": {
+								"Australia": "Australia"
+							},
+							"Cottonseed": {
+								"Australia": "Australia"
+							},
+							"Molasses": {
+								"QLD": "QLD"
+							}
+						}
+					},
+					"Ingredient4Percent": {
+						"CellType": "percent"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_ChemicalsPharmacy",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 3,
+			"ColumnNames": {
+				"ProductName": "Product name",
+				"Type": "Type (select)",
+				"NumberOfHeadTreated": "Number of head treated"
+			},
+			"Rows": {
+				"Row": {
+					"ProductName": {
+						"CellType": "text"
+					},
+					"Type": {
+						"CellType": "select",
+						"Options": {
+							"Parasite control for cattle (external), dipping": "Parasite control for cattle (external), dipping",
+							"Parasite control for cattle (internal)": "Parasite control for cattle (internal)",
+							"Parasite control for sheep (external)": "Parasite control for sheep (external)",
+							"Parasite control for sheep (internal)": "Parasite control for sheep (internal)"
+						}
+					},
+					"NumberOfHeadTreated": {
+						"CellType": "number"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_FreightIncoming",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 5,
+			"ColumnNames": {
+				"RouteName": "Route name",
+				"FreightType": "Freight type (select)",
+				"RouteDistance": "Route distance (km)",
+				"AverageWeightOfFreightPerTrip": "Average weight of freight per trip (t)",
+				"NumberOfTripsTaken": "Number of trips taken"
+			},
+			"Rows": {
+				"Row": {
+					"RouteName": {
+						"CellType": "text"
+					},
+					"FreightType": {
+						"CellType": "select",
+						"Options": {
+							"Transport in truck": "Transport in truck",
+							"Rail": "Rail",
+							"Long haul flight": "Long haul flight",
+							"medium haul flight": "medium haul flight",
+							"Small container ship": "Small container ship",
+							"Large container ship": "Large container ship"
+						}
+					},
+					"RouteDistance": {
+						"CellType": "number",
+						"Unit": "km"
+					},
+					"AverageWeightOfFreightPerTrip": {
+						"CellType": "number",
+						"Unit": "t"
+					},
+					"NumberOfTripsTaken": {
+						"CellType": "number"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_FreightOutgoing",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 5,
+			"ColumnNames": {
+				"RouteName": "Route name",
+				"FreightType": "Freight type (select)",
+				"RouteDistance": "Route distance (km)",
+				"AverageWeightOfFreightPerTrip": "Average weight of freight per trip (t)",
+				"NumberOfTripsTaken": "Number of trips taken"
+			},
+			"Rows": {
+				"Row": {
+					"RouteName": {
+						"CellType": "text"
+					},
+					"FreightType": {
+						"CellType": "select",
+						"Options": {
+							"Transport in truck": "Transport in truck",
+							"Rail": "Rail",
+							"Long haul flight": "Long haul flight",
+							"medium haul flight": "medium haul flight",
+							"Small container ship": "Small container ship",
+							"Large container ship": "Large container ship"
+						}
+					},
+					"RouteDistance": {
+						"CellType": "number",
+						"Unit": "km"
+					},
+					"AverageWeightOfFreightPerTrip": {
+						"CellType": "number",
+						"Unit": "t"
+					},
+					"NumberOfTripsTaken": {
+						"CellType": "number"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_SolidWaste",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 6,
+			"ColumnNames": {
+				"Description": "Description",
+				"TreatmentType": "Treatment type (select)",
+				"WasteType": "Waste type (select)",
+				"TreatmentLocation": "Treatment location (select)",
+				"Amount": "Amount",
+				"AmountUnit": "Amount unit (select)"
+			},
+			"Rows": {
+				"Row": {
+					"Description": {
+						"CellType": "text"
+					},
+					"TreatmentType": {
+						"CellType": "select",
+						"Options": {
+							"Landfill": "Landfill",
+							"Incineration": "Incineration",
+							"Composting": "Composting",
+							"Anaerobic digestion": "Anaerobic digestion"
+						}
+					},
+					"WasteType": {
+						"CellType": "select",
+						"DependentOn": "TreatmentType",
+						"Options": {
+							"Landfill": {
+								"Food waste (including animal carcasses, spoiled animal feed or crop)": "Food waste (including animal carcasses, spoiled animal feed or crop)",
+								"Paper and cardboard": "Paper and cardboard",
+								"Green waste (including crop residues or prunings)": "Green waste (including crop residues or prunings)",
+								"Wood": "Wood",
+								"Textiles": "Textiles",
+								"Sludge": "Sludge",
+								"Rubber and leather": "Rubber and leather",
+								"Inert waste (including concrete, metal, plastic or glass)": "Inert waste (including concrete, metal, plastic or glass)",
+								"Municipal solid waste": "Municipal solid waste",
+								"Commercial and industrial waste": "Commercial and industrial waste",
+								"Construction and demolition waste": "Construction and demolition waste"
+							},
+							"Incineration": {
+								"Food waste (including animal carcasses, spoiled animal feed or crop)": "Food waste (including animal carcasses, spoiled animal feed or crop)",
+								"Green waste (including crop residues or prunings)": "Green waste (including crop residues or prunings)",
+								"Wood": "Wood",
+								"Sludge": "Sludge",
+								"Paper and cardboard": "Paper and cardboard",
+								"Textiles": "Textiles",
+								"Rubber and leather": "Rubber and leather",
+								"Inert waste (including concrete, metal, plastic or glass)": "Inert waste (including concrete, metal, plastic or glass)",
+								"Municipal solid waste": "Municipal solid waste",
+								"Commercial and industrial waste": "Commercial and industrial waste"
+							},
+							"Composting": {
+								"Food waste (including animal carcasses, spoiled animal feed or crop)": "Food waste (including animal carcasses, spoiled animal feed or crop)",
+								"Green waste (including crop residues or prunings)": "Green waste (including crop residues or prunings)",
+								"Wood": "Wood",
+								"Sludge": "Sludge",
+								"Paper and cardboard": "Paper and cardboard"
+							},
+							"Anaerobicdigestion": {
+								"Food waste (including animal carcasses, spoiled animal feed or crop)": "Food waste (including animal carcasses, spoiled animal feed or crop)",
+								"Green waste (including crop residues or prunings)": "Green waste (including crop residues or prunings)",
+								"Wood": "Wood",
+								"Sludge": "Sludge",
+								"Paper and cardboard": "Paper and cardboard"
+							}
+						}
+					},
+					"TreatmentLocation": {
+						"CellType": "select",
+						"Options": {
+							"Treated on-site": "Treated on-site",
+							"Removed and treated off-site": "Removed and treated off-site"
+						}
+					},
+					"Amount": {
+						"CellType": "number"
+					},
+					"AmountUnit": {
+						"CellType": "select",
+						"Options": {
+							"tonnes": "tonnes",
+							"cubic metres m3": "cubic metres m3"
+						}
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_DataQuality_Enterprise",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 6,
+			"ColumnNames": {
+				"WhenWasTheDataSourced": "When was the data sourced?",
+				"WhereIsTheDataSourcedFrom": "Where is the data sourced from?",
+				"HowMuchOfTheDataWasFromDirectSamples": "How much of the data was from direct samples?",
+				"Notes": "Notes",
+				"EvidenceFiles": "Evidence files",
+				"Score": "Score"
+			},
+			"Rows": {
+				"Row": {
+					"WhenWasTheDataSourced": {
+						"CellType": "select",
+						"Options": {
+							"During this emissions calculation period": "During this emissions calculation period",
+							"Within 2 years of this emissions calculation period": "Within 2 years of this emissions calculation period",
+							"Within 3 years of this emissions calculation period": "Within 3 years of this emissions calculation period",
+							"Within 4 years of this emissions calculation period": "Within 4 years of this emissions calculation period",
+							"Unknown, or more than 4 years of this emissions calculation period": "Unknown, or more than 4 years of this emissions calculation period"
+						}
+					},
+					"WhereIsTheDataSourcedFrom": {
+						"CellType": "select",
+						"Options": {
+							"This location with spatial partitioning": "This location with spatial partitioning",
+							"This location without spatial partitioning": "This location without spatial partitioning",
+							"Regional-level data from a government or industry database/survey": "Regional-level data from a government or industry database/survey",
+							"State-level data from a government or industry database/survey": "State-level data from a government or industry database/survey",
+							"National-level data from a government or industry database/survey": "National-level data from a government or industry database/survey"
+						}
+					},
+					"HowMuchOfTheDataWasFromDirectSamples": {
+						"CellType": "select",
+						"Options": {
+							"Over 90%": "Over 90%",
+							"Between 51% and 90%": "Between 51% and 90%",
+							"Between 21% and 50%": "Between 21% and 50%",
+							"Less than 20%": "Less than 20%",
+							"Unknown": "Unknown"
+						}
+					},
+					"Notes": {
+						"CellType": "text"
+					},
+					"EvidenceFiles": {
+						"CellType": "text"
+					},
+					"Score": {
+						"CellType": "formula"
+					}
+				}
+			},
+			"FixedRows": true,
+			"NumberOfRows": 5,
+			"RowLabels": {
+				"LiveweightSold": "Liveweight sold",
+				"ManureProduced": "Manure produced",
+				"ManureSold": "Manure sold",
+				"PercentIncomeFromLiveweightSold": "Percent income from liveweight sold",
+				"PercentIncomeFromManureSold": "Percent income from manure sold"
+			}
+		},
+		{
+			"TableName": "Table_Input_DataQuality_Site",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 6,
+			"ColumnNames": {
+				"WhenWasTheDataSourced": "When was the data sourced?",
+				"WhereIsTheDataSourcedFrom": "Where is the data sourced from?",
+				"HowMuchOfTheDataWasFromDirectSamples": "How much of the data was from direct samples?",
+				"Notes": "Notes",
+				"EvidenceFiles": "Evidence files",
+				"Score": "Score"
+			},
+			"Rows": {
+				"Row": {
+					"WhenWasTheDataSourced": {
+						"CellType": "select",
+						"Options": {
+							"During this emissions calculation period": "During this emissions calculation period",
+							"Within 2 years of this emissions calculation period": "Within 2 years of this emissions calculation period",
+							"Within 3 years of this emissions calculation period": "Within 3 years of this emissions calculation period",
+							"Within 4 years of this emissions calculation period": "Within 4 years of this emissions calculation period",
+							"Unknown, or more than 4 years of this emissions calculation period": "Unknown, or more than 4 years of this emissions calculation period"
+						}
+					},
+					"WhereIsTheDataSourcedFrom": {
+						"CellType": "select",
+						"Options": {
+							"This location with spatial partitioning": "This location with spatial partitioning",
+							"This location without spatial partitioning": "This location without spatial partitioning",
+							"Regional-level data from a government or industry database/survey": "Regional-level data from a government or industry database/survey",
+							"State-level data from a government or industry database/survey": "State-level data from a government or industry database/survey",
+							"National-level data from a government or industry database/survey": "National-level data from a government or industry database/survey"
+						}
+					},
+					"HowMuchOfTheDataWasFromDirectSamples": {
+						"CellType": "select",
+						"Options": {
+							"Over 90%": "Over 90%",
+							"Between 51% and 90%": "Between 51% and 90%",
+							"Between 21% and 50%": "Between 21% and 50%",
+							"Less than 20%": "Less than 20%",
+							"Unknown": "Unknown"
+						}
+					},
+					"Notes": {
+						"CellType": "text"
+					},
+					"EvidenceFiles": {
+						"CellType": "text"
+					},
+					"Score": {
+						"CellType": "formula"
+					}
+				}
+			},
+			"FixedRows": true,
+			"NumberOfRows": 6,
+			"RowLabels": {
+				"LeachingZone": "Leaching zone",
+				"Elevation": "Elevation",
+				"AverageTemperatureForReportingPeriod": "Average temperature for reporting period",
+				"TotalRainfallForReportingPeriod": "Total rainfall for reporting period",
+				"PotentialEvapotranspirationForReportingPeriod": "Potential evapotranspiration for reporting period",
+				"NumberOfFrostDaysForReportingPeriod": "Number of frost days for reporting period"
+			}
+		},
+		{
+			"TableName": "Table_Input_DataQuality_PastureManagement",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 6,
+			"ColumnNames": {
+				"WhenWasTheDataSourced": "When was the data sourced?",
+				"WhereIsTheDataSourcedFrom": "Where is the data sourced from?",
+				"HowMuchOfTheDataWasFromDirectSamples": "How much of the data was from direct samples?",
+				"Notes": "Notes",
+				"EvidenceFiles": "Evidence files",
+				"Score": "Score"
+			},
+			"Rows": {
+				"Row": {
+					"WhenWasTheDataSourced": {
+						"CellType": "select",
+						"Options": {
+							"During this emissions calculation period": "During this emissions calculation period",
+							"Within 2 years of this emissions calculation period": "Within 2 years of this emissions calculation period",
+							"Within 3 years of this emissions calculation period": "Within 3 years of this emissions calculation period",
+							"Within 4 years of this emissions calculation period": "Within 4 years of this emissions calculation period",
+							"Unknown, or more than 4 years of this emissions calculation period": "Unknown, or more than 4 years of this emissions calculation period"
+						}
+					},
+					"WhereIsTheDataSourcedFrom": {
+						"CellType": "select",
+						"Options": {
+							"This location with spatial partitioning": "This location with spatial partitioning",
+							"This location without spatial partitioning": "This location without spatial partitioning",
+							"Regional-level data from a government or industry database/survey": "Regional-level data from a government or industry database/survey",
+							"State-level data from a government or industry database/survey": "State-level data from a government or industry database/survey",
+							"National-level data from a government or industry database/survey": "National-level data from a government or industry database/survey"
+						}
+					},
+					"HowMuchOfTheDataWasFromDirectSamples": {
+						"CellType": "select",
+						"Options": {
+							"Over 90%": "Over 90%",
+							"Between 51% and 90%": "Between 51% and 90%",
+							"Between 21% and 50%": "Between 21% and 50%",
+							"Less than 20%": "Less than 20%",
+							"Unknown": "Unknown"
+						}
+					},
+					"Notes": {
+						"CellType": "text"
+					},
+					"EvidenceFiles": {
+						"CellType": "text"
+					},
+					"Score": {
+						"CellType": "formula"
+					}
+				}
+			},
+			"FixedRows": true,
+			"NumberOfRows": 7,
+			"RowLabels": {
+				"HeadCount": "Head count",
+				"DurationOfStay": "Duration of stay",
+				"VolatileSolidProduction": "Volatile solid production",
+				"NitrogenInWaste": "Nitrogen in waste",
+				"ProductionAndManureManagementSystems": "Production and manure management systems",
+				"LivestockSales": "Livestock sales",
+				"LivestockPurchases": "Livestock purchases"
+			}
+		},
+		{
+			"TableName": "Table_Input_DataQuality_FuelElectricity",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 6,
+			"ColumnNames": {
+				"WhenWasTheDataSourced": "When was the data sourced?",
+				"WhereIsTheDataSourcedFrom": "Where is the data sourced from?",
+				"HowMuchOfTheDataWasFromDirectSamples": "How much of the data was from direct samples?",
+				"Notes": "Notes",
+				"EvidenceFiles": "Evidence files",
+				"Score": "Score"
+			},
+			"Rows": {
+				"Row": {
+					"WhenWasTheDataSourced": {
+						"CellType": "select",
+						"Options": {
+							"During this emissions calculation period": "During this emissions calculation period",
+							"Within 2 years of this emissions calculation period": "Within 2 years of this emissions calculation period",
+							"Within 3 years of this emissions calculation period": "Within 3 years of this emissions calculation period",
+							"Within 4 years of this emissions calculation period": "Within 4 years of this emissions calculation period",
+							"Unknown, or more than 4 years of this emissions calculation period": "Unknown, or more than 4 years of this emissions calculation period"
+						}
+					},
+					"WhereIsTheDataSourcedFrom": {
+						"CellType": "select",
+						"Options": {
+							"This location with spatial partitioning": "This location with spatial partitioning",
+							"This location without spatial partitioning": "This location without spatial partitioning",
+							"Regional-level data from a government or industry database/survey": "Regional-level data from a government or industry database/survey",
+							"State-level data from a government or industry database/survey": "State-level data from a government or industry database/survey",
+							"National-level data from a government or industry database/survey": "National-level data from a government or industry database/survey"
+						}
+					},
+					"HowMuchOfTheDataWasFromDirectSamples": {
+						"CellType": "select",
+						"Options": {
+							"Over 90%": "Over 90%",
+							"Between 51% and 90%": "Between 51% and 90%",
+							"Between 21% and 50%": "Between 21% and 50%",
+							"Less than 20%": "Less than 20%",
+							"Unknown": "Unknown"
+						}
+					},
+					"Notes": {
+						"CellType": "text"
+					},
+					"EvidenceFiles": {
+						"CellType": "text"
+					},
+					"Score": {
+						"CellType": "formula"
+					}
+				}
+			},
+			"FixedRows": true,
+			"NumberOfRows": 4,
+			"RowLabels": {
+				"FuelPurchases": "Fuel purchases",
+				"FuelConsumption": "Fuel consumption",
+				"ElectricityConsumption": "Electricity consumption",
+				"ElectricityGeneration": "Electricity generation"
+			}
+		},
+		{
+			"TableName": "Table_Input_DataQuality_FarmInputsFreightWaste",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 6,
+			"ColumnNames": {
+				"WhenWasTheDataSourced": "When was the data sourced?",
+				"WhereIsTheDataSourcedFrom": "Where is the data sourced from?",
+				"HowMuchOfTheDataWasFromDirectSamples": "How much of the data was from direct samples?",
+				"Notes": "Notes",
+				"EvidenceFiles": "Evidence files",
+				"Score": "Score"
+			},
+			"Rows": {
+				"Row": {
+					"WhenWasTheDataSourced": {
+						"CellType": "select",
+						"Options": {
+							"During this emissions calculation period": "During this emissions calculation period",
+							"Within 2 years of this emissions calculation period": "Within 2 years of this emissions calculation period",
+							"Within 3 years of this emissions calculation period": "Within 3 years of this emissions calculation period",
+							"Within 4 years of this emissions calculation period": "Within 4 years of this emissions calculation period",
+							"Unknown, or more than 4 years of this emissions calculation period": "Unknown, or more than 4 years of this emissions calculation period"
+						}
+					},
+					"WhereIsTheDataSourcedFrom": {
+						"CellType": "select",
+						"Options": {
+							"This location with spatial partitioning": "This location with spatial partitioning",
+							"This location without spatial partitioning": "This location without spatial partitioning",
+							"Regional-level data from a government or industry database/survey": "Regional-level data from a government or industry database/survey",
+							"State-level data from a government or industry database/survey": "State-level data from a government or industry database/survey",
+							"National-level data from a government or industry database/survey": "National-level data from a government or industry database/survey"
+						}
+					},
+					"HowMuchOfTheDataWasFromDirectSamples": {
+						"CellType": "select",
+						"Options": {
+							"Over 90%": "Over 90%",
+							"Between 51% and 90%": "Between 51% and 90%",
+							"Between 21% and 50%": "Between 21% and 50%",
+							"Less than 20%": "Less than 20%",
+							"Unknown": "Unknown"
+						}
+					},
+					"Notes": {
+						"CellType": "text"
+					},
+					"EvidenceFiles": {
+						"CellType": "text"
+					},
+					"Score": {
+						"CellType": "formula"
+					}
+				}
+			},
+			"FixedRows": true,
+			"NumberOfRows": 5,
+			"RowLabels": {
+				"FarmInputPurchases": "Farm input purchases",
+				"InboundFreightUse": "Inbound freight use",
+				"OutboundFreightUse": "Outbound freight use",
+				"UseOfContractorsAndServiceProviders": "Use of contractors and service providers",
+				"SolidWasteGenerationAndTreatment": "Solid waste generation and treatment"
+			}
+		},
+		{
+			"TableName": "Table_Input_InorganicFertiliser_Brands",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 22,
+			"ColumnNames": {
+				"Product": "Product (select)",
+				"AmountAppliedPerHectare": "Amount applied per hectare",
+				"ApplicationUnit": "Application unit",
+				"ApplicationArea": "Application area (ha)",
+				"Density": "Density",
+				"TotalApplied": "Total applied (kg)",
+				"Ingredient1": "Ingredient 1",
+				"Ingredient1Percent": "Ingredient 1 percent",
+				"Ingredient2": "Ingredient 2",
+				"Ingredient2Percent": "Ingredient 2 percent",
+				"Ingredient3": "Ingredient 3",
+				"Ingredient3Percent": "Ingredient 3 percent",
+				"Ingredient4": "Ingredient 4",
+				"Ingredient4Percent": "Ingredient 4 percent",
+				"Ingredient5": "Ingredient 5",
+				"Ingredient5Percent": "Ingredient 5 percent",
+				"Ingredient6": "Ingredient 6",
+				"Ingredient6Percent": "Ingredient 6 percent",
+				"N": "% N (Ingredients)",
+				"NApplicationRate": "N application rate (kg/ha)",
+				"UreaSource": "Urea source",
+				"AmmoniaSource": "Ammonia source"
+			},
+			"Rows": {
+				"Row": {
+					"Product": {
+						"CellType": "select",
+						"Options": {
+							"Aqua Finish": "Aqua Finish",
+							"Aqua Grow": "Aqua Grow",
+							"Aqua Nitro AN": "Aqua Nitro AN",
+							"Aqua NitroCal": "Aqua NitroCal",
+							"Aqua NitroCal (VI)": "Aqua NitroCal (VI)",
+							"Aqua NitroCal Ultimate": "Aqua NitroCal Ultimate",
+							"Aqua Start": "Aqua Start",
+							"Aqua Thio-Complete": "Aqua Thio-Complete",
+							"Aqua Thio-Emerge": "Aqua Thio-Emerge",
+							"Aqua Thio-Flourish": "Aqua Thio-Flourish",
+							"Boost-It": "Boost-It",
+							"Bronze": "Bronze",
+							"Calbit C": "Calbit C",
+							"Compass": "Compass",
+							"CoRoN 12-0-10": "CoRoN 12-0-10",
+							"Maximum Quick-N": "Maximum Quick-N",
+							"Crop Booster PLUS": "Crop Booster PLUS",
+							"Ammonium Bicarbonate": "Ammonium Bicarbonate",
+							"Ammonium Sulfate": "Ammonium Sulfate",
+							"Ammonium Sulphate - Granular": "Ammonium Sulphate - Granular",
+							"Di-Ammonium Phosphate (DAP)": "Di-Ammonium Phosphate (DAP)",
+							"Basalt BooSSta": "Basalt BooSSta",
+							"DAPSZC": "DAPSZC",
+							"Easy N": "Easy N",
+							"Calcium Ammonium nitrate": "Calcium Ammonium nitrate",
+							"CellCAL Plus": "CellCAL Plus",
+							"CK55": "CK55",
+							"Crop K": "Crop K",
+							"Crop Starter": "Crop Starter",
+							"Gran-Am": "Gran-Am",
+							"Encal": "Encal",
+							"Granulock SS": "Granulock SS",
+							"Granulock Z": "Granulock Z",
+							"Farm Ag Leichhardt": "Farm Ag Leichhardt",
+							"Flexi-N NBPT": "Flexi-N NBPT",
+							"Gold Premium": "Gold Premium",
+							"High NS": "High NS",
+							"Impact SSP": "Impact SSP",
+							"In Crop": "In Crop",
+							"K20": "K20",
+							"Maximum N-Pact": "Maximum N-Pact",
+							"Nitro Combi TE": "Nitro Combi TE",
+							"PastureMAXX": "PastureMAXX",
+							"Platinum Nergetic": "Platinum Nergetic",
+							"Sulphate of ammonia (SOA)": "Sulphate of ammonia (SOA)",
+							"Mono-Ammonium Phosphate (MAP)": "Mono-Ammonium Phosphate (MAP)",
+							"Urea": "Urea",
+							"Muriate of potash (MOP)": "Muriate of potash (MOP)",
+							"Urea Ammonium nitrate (UAN 32-0-0)": "Urea Ammonium nitrate (UAN 32-0-0)",
+							"Polypeptide Urea": "Polypeptide Urea",
+							"YaraTera CALCINIT": "YaraTera CALCINIT",
+							"YaraLiva NITRABOR": "YaraLiva NITRABOR",
+							"YaraMila COMPLEX": "YaraMila COMPLEX",
+							"YaraRega 9-0-30 (14)": "YaraRega 9-0-30 (14)",
+							"YaraRega 13-2-21": "YaraRega 13-2-21",
+							"YaraRega 15-7-13 (7S)": "YaraRega 15-7-13 (7S)",
+							"YaraTera CALCINIT B": "YaraTera CALCINIT B",
+							"YaraTera KRISTA MAP": "YaraTera KRISTA MAP",
+							"YaraTera KRISTALON RED": "YaraTera KRISTALON RED",
+							"YaraTera KRISTALON SPECIAL": "YaraTera KRISTALON SPECIAL",
+							"YaraMila 21-7-3(4)": "YaraMila 21-7-3(4)",
+							"YaraTera KRISTALON SCARLET": "YaraTera KRISTALON SCARLET",
+							"Solu-MAP": "Solu-MAP",
+							"Solu-Sam": "Solu-Sam",
+							"Rustica Plus": "Rustica Plus",
+							"Platinum Plus": "Platinum Plus",
+							"Tropika": "Tropika",
+							"Rustica Nergetic": "Rustica Nergetic",
+							"Quick-N Nergetic": "Quick-N Nergetic",
+							"(SSP) Single Super Fertiliser": "(SSP) Single Super Fertiliser",
+							"ZincStar": "ZincStar",
+							"Apex GaIXe Low P 21-1-6": "Apex GaIXe Low P 21-1-6",
+							"SuPerfect": "SuPerfect",
+							"Big N": "Big N",
+							"Entec Urea": "Entec Urea",
+							"Flexi-N NI only": "Flexi-N NI only",
+							"Muriate Of Potash MOP": "Muriate Of Potash MOP",
+							"MAP NUTURF": "MAP NUTURF",
+							"Quick-N": "Quick-N",
+							"UAS": "UAS",
+							"Triazone Urea": "Triazone Urea",
+							"Ammo 36N": "Ammo 36N",
+							"Risso Liquid NPK (200-200-200)": "Risso Liquid NPK (200-200-200)",
+							"Super Cal 15-0-12": "Super Cal 15-0-12",
+							"CK 88": "CK 88",
+							"CropLift 15": "CropLift 15",
+							"NPKS 19-13-0-9": "NPKS 19-13-0-9",
+							"PastureBoosta": "PastureBoosta",
+							"Greentop K": "Greentop K",
+							"HayBoosta": "HayBoosta",
+							"Impact Super Potash 1&1": "Impact Super Potash 1&1",
+							"Impact Super Potash 2&1": "Impact Super Potash 2&1",
+							"Impact Super Potash 3&1": "Impact Super Potash 3&1",
+							"Impact Super Potash 4&1": "Impact Super Potash 4&1",
+							"Impact Super Potash 5&1": "Impact Super Potash 5&1",
+							"Cal-Gran": "Cal-Gran",
+							"Cal-Gran 50/50": "Cal-Gran 50/50",
+							"Cal-Gran 50/50 (S)": "Cal-Gran 50/50 (S)",
+							"Cal-Gran 130": "Cal-Gran 130",
+							"Cal-Gran 150": "Cal-Gran 150",
+							"Cal-Gran Extra K": "Cal-Gran Extra K",
+							"Dairy Pro": "Dairy Pro",
+							"YaraMila ACTYVA S": "YaraMila ACTYVA S",
+							"Agflow Extra": "Agflow Extra",
+							"Super & Potash 3:1": "Super & Potash 3:1",
+							"YaraBela CAN-27": "YaraBela CAN-27",
+							"Cal-Gran Aftergraze": "Cal-Gran Aftergraze",
+							"Cal-Gran Prodress": "Cal-Gran Prodress",
+							"Wengfu PrimeZinc 10": "Wengfu PrimeZinc 10",
+							"Wengfu Pasture King": "Wengfu Pasture King",
+							"Wengfu SuStain": "Wengfu SuStain",
+							"Wengfu Slam": "Wengfu Slam",
+							"Wengfu Prime MSZ": "Wengfu Prime MSZ",
+							"Wengfu 9-20-0-10 MAP SuStain": "Wengfu 9-20-0-10 MAP SuStain",
+							"Wengfu 15-17-0-15 DAP SuStain": "Wengfu 15-17-0-15 DAP SuStain",
+							"Wengfu 16-18-0-10 DAP SuStain": "Wengfu 16-18-0-10 DAP SuStain",
+							"Wengfu 5-15-0-6 Fast Start Legume": "Wengfu 5-15-0-6 Fast Start Legume",
+							"Wengfu 9-20-0-10 PrimeZinc": "Wengfu 9-20-0-10 PrimeZinc",
+							"Wengfu 12-18-0-6 PrimeZinc": "Wengfu 12-18-0-6 PrimeZinc",
+							"Wengfu 14-13-0-11 PrimeZinc": "Wengfu 14-13-0-11 PrimeZinc",
+							"Wengfu 19-13-0-7 PrimeZinc": "Wengfu 19-13-0-7 PrimeZinc",
+							"Wengfu Booster K": "Wengfu Booster K",
+							"Wengfu Booster Rich 1": "Wengfu Booster Rich 1",
+							"Wengfu Booster Grass DAP": "Wengfu Booster Grass DAP",
+							"Wengfu Aftergraze": "Wengfu Aftergraze",
+							"Wengfu Sidedress": "Wengfu Sidedress",
+							"Wengfu Pasture Booster": "Wengfu Pasture Booster",
+							"Wengfu DAP Hay Booster": "Wengfu DAP Hay Booster",
+							"Wengfu MAP Hay Booster": "Wengfu MAP Hay Booster",
+							"Wengfu Fodder Booster": "Wengfu Fodder Booster",
+							"K-Till Extra": "K-Till Extra",
+							"Agras Extra": "Agras Extra",
+							"Super Copper Zinc Moly": "Super Copper Zinc Moly",
+							"Flexi-N": "Flexi-N"
+						}
+					},
+					"AmountAppliedPerHectare": {
+						"CellType": "number"
+					},
+					"ApplicationUnit": {
+						"CellType": "formula"
+					},
+					"ApplicationArea": {
+						"CellType": "formula",
+						"Unit": "ha"
+					},
+					"Density": {
+						"CellType": "formula"
+					},
+					"TotalApplied": {
+						"CellType": "formula",
+						"Unit": "kg"
+					},
+					"Ingredient1": {
+						"CellType": "formula"
+					},
+					"Ingredient1Percent": {
+						"CellType": "formula"
+					},
+					"Ingredient2": {
+						"CellType": "formula"
+					},
+					"Ingredient2Percent": {
+						"CellType": "formula"
+					},
+					"Ingredient3": {
+						"CellType": "formula"
+					},
+					"Ingredient3Percent": {
+						"CellType": "formula"
+					},
+					"Ingredient4": {
+						"CellType": "formula"
+					},
+					"Ingredient4Percent": {
+						"CellType": "formula"
+					},
+					"Ingredient5": {
+						"CellType": "formula"
+					},
+					"Ingredient5Percent": {
+						"CellType": "formula"
+					},
+					"Ingredient6": {
+						"CellType": "formula"
+					},
+					"Ingredient6Percent": {
+						"CellType": "formula"
+					},
+					"N": {
+						"CellType": "formula",
+						"Unit": "declared"
+					},
+					"NApplicationRate": {
+						"CellType": "formula",
+						"Unit": "kg/ha"
+					},
+					"UreaSource": {
+						"CellType": "formula"
+					},
+					"AmmoniaSource": {
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_InorganicFertiliser_Custom",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 15,
+			"ColumnNames": {
+				"CustomBlendName": "Custom blend name",
+				"AmountApplied": "Amount applied (kg / ha)",
+				"ApplicationArea": "Application area (ha)",
+				"TotalApplied": "Total applied (kg)",
+				"Ingredient1": "Ingredient 1 (select)",
+				"Ingredient1Percent": "Ingredient 1 percent",
+				"Ingredient2": "Ingredient 2",
+				"Ingredient2Percent": "Ingredient 2 percent",
+				"Ingredient3": "Ingredient 3",
+				"Ingredient3Percent": "Ingredient 3 percent",
+				"Ingredient4": "Ingredient 4",
+				"Ingredient4Percent": "Ingredient 4 percent",
+				"NApplicationRate": "N application rate (kg/ha)",
+				"UreaSource": "Urea source (Select)",
+				"AmmoniaSource": "Ammonia source (select)"
+			},
+			"Rows": {
+				"Row": {
+					"CustomBlendName": {
+						"CellType": "text"
+					},
+					"AmountApplied": {
+						"CellType": "number",
+						"Unit": "kg / ha"
+					},
+					"ApplicationArea": {
+						"CellType": "formula",
+						"Unit": "ha"
+					},
+					"TotalApplied": {
+						"CellType": "formula",
+						"Unit": "kg"
+					},
+					"Ingredient1": {
+						"CellType": "select",
+						"Options": {
+							"Monoammonium phosphate (MAP)": "Monoammonium phosphate (MAP)",
+							"Diammonium phosphate (DAP)": "Diammonium phosphate (DAP)",
+							"Urea": "Urea",
+							"Sulphate of ammonia (SOA)": "Sulphate of ammonia (SOA)",
+							"Urea-ammonium nitrate (UAN)": "Urea-ammonium nitrate (UAN)",
+							"Ammonium nitrate (AN)": "Ammonium nitrate (AN)",
+							"Calcium ammonium nitrate (CAN)": "Calcium ammonium nitrate (CAN)",
+							"Nitrogen - Ammoniacal": "Nitrogen - Ammoniacal",
+							"Nitrogen - Nitrate": "Nitrogen - Nitrate",
+							"Nitrogen - Generic": "Nitrogen - Generic",
+							"Phosphorus - Generic": "Phosphorus - Generic",
+							"Potassium - Generic": "Potassium - Generic",
+							"Sulfur - Generic": "Sulfur - Generic",
+							"Zinc - Generic": "Zinc - Generic",
+							"Muriate of potash (MOP)": "Muriate of potash (MOP)",
+							"Double superphosphate": "Double superphosphate",
+							"Single superphosphate (SSP)": "Single superphosphate (SSP)",
+							"Ammonia": "Ammonia",
+							"Calcium nitrate": "Calcium nitrate"
+						}
+					},
+					"Ingredient1Percent": {
+						"CellType": "percent"
+					},
+					"Ingredient2": {
+						"CellType": "select",
+						"Options": {
+							"Monoammonium phosphate (MAP)": "Monoammonium phosphate (MAP)",
+							"Diammonium phosphate (DAP)": "Diammonium phosphate (DAP)",
+							"Urea": "Urea",
+							"Sulphate of ammonia (SOA)": "Sulphate of ammonia (SOA)",
+							"Urea-ammonium nitrate (UAN)": "Urea-ammonium nitrate (UAN)",
+							"Ammonium nitrate (AN)": "Ammonium nitrate (AN)",
+							"Calcium ammonium nitrate (CAN)": "Calcium ammonium nitrate (CAN)",
+							"Nitrogen - Ammoniacal": "Nitrogen - Ammoniacal",
+							"Nitrogen - Nitrate": "Nitrogen - Nitrate",
+							"Nitrogen - Generic": "Nitrogen - Generic",
+							"Phosphorus - Generic": "Phosphorus - Generic",
+							"Potassium - Generic": "Potassium - Generic",
+							"Sulfur - Generic": "Sulfur - Generic",
+							"Zinc - Generic": "Zinc - Generic",
+							"Muriate of potash (MOP)": "Muriate of potash (MOP)",
+							"Double superphosphate": "Double superphosphate",
+							"Single superphosphate (SSP)": "Single superphosphate (SSP)",
+							"Ammonia": "Ammonia",
+							"Calcium nitrate": "Calcium nitrate"
+						}
+					},
+					"Ingredient2Percent": {
+						"CellType": "percent"
+					},
+					"Ingredient3": {
+						"CellType": "select",
+						"Options": {
+							"Monoammonium phosphate (MAP)": "Monoammonium phosphate (MAP)",
+							"Diammonium phosphate (DAP)": "Diammonium phosphate (DAP)",
+							"Urea": "Urea",
+							"Sulphate of ammonia (SOA)": "Sulphate of ammonia (SOA)",
+							"Urea-ammonium nitrate (UAN)": "Urea-ammonium nitrate (UAN)",
+							"Ammonium nitrate (AN)": "Ammonium nitrate (AN)",
+							"Calcium ammonium nitrate (CAN)": "Calcium ammonium nitrate (CAN)",
+							"Nitrogen - Ammoniacal": "Nitrogen - Ammoniacal",
+							"Nitrogen - Nitrate": "Nitrogen - Nitrate",
+							"Nitrogen - Generic": "Nitrogen - Generic",
+							"Phosphorus - Generic": "Phosphorus - Generic",
+							"Potassium - Generic": "Potassium - Generic",
+							"Sulfur - Generic": "Sulfur - Generic",
+							"Zinc - Generic": "Zinc - Generic",
+							"Muriate of potash (MOP)": "Muriate of potash (MOP)",
+							"Double superphosphate": "Double superphosphate",
+							"Single superphosphate (SSP)": "Single superphosphate (SSP)",
+							"Ammonia": "Ammonia",
+							"Calcium nitrate": "Calcium nitrate"
+						}
+					},
+					"Ingredient3Percent": {
+						"CellType": "percent"
+					},
+					"Ingredient4": {
+						"CellType": "select",
+						"Options": {
+							"Monoammonium phosphate (MAP)": "Monoammonium phosphate (MAP)",
+							"Diammonium phosphate (DAP)": "Diammonium phosphate (DAP)",
+							"Urea": "Urea",
+							"Sulphate of ammonia (SOA)": "Sulphate of ammonia (SOA)",
+							"Urea-ammonium nitrate (UAN)": "Urea-ammonium nitrate (UAN)",
+							"Ammonium nitrate (AN)": "Ammonium nitrate (AN)",
+							"Calcium ammonium nitrate (CAN)": "Calcium ammonium nitrate (CAN)",
+							"Nitrogen - Ammoniacal": "Nitrogen - Ammoniacal",
+							"Nitrogen - Nitrate": "Nitrogen - Nitrate",
+							"Nitrogen - Generic": "Nitrogen - Generic",
+							"Phosphorus - Generic": "Phosphorus - Generic",
+							"Potassium - Generic": "Potassium - Generic",
+							"Sulfur - Generic": "Sulfur - Generic",
+							"Zinc - Generic": "Zinc - Generic",
+							"Muriate of potash (MOP)": "Muriate of potash (MOP)",
+							"Double superphosphate": "Double superphosphate",
+							"Single superphosphate (SSP)": "Single superphosphate (SSP)",
+							"Ammonia": "Ammonia",
+							"Calcium nitrate": "Calcium nitrate"
+						}
+					},
+					"Ingredient4Percent": {
+						"CellType": "percent"
+					},
+					"NApplicationRate": {
+						"CellType": "formula",
+						"Unit": "kg/ha"
+					},
+					"UreaSource": {
+						"CellType": "select",
+						"Options": {
+							"Global": "Global",
+							"Canada": "Canada",
+							"China": "China",
+							"Yemen": "Yemen"
+						}
+					},
+					"AmmoniaSource": {
+						"CellType": "select",
+						"Options": {
+							"Global": "Global",
+							"Canada": "Canada",
+							"China": "China",
+							"Yemen": "Yemen"
+						}
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_Lime",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 8,
+			"ColumnNames": {
+				"Product": "Product",
+				"AmountApplied": "Amount applied (t/hectare)",
+				"ApplicationArea": "Application area (ha)",
+				"TotalAmountApplied": "Total amount applied (t)",
+				"PercentLimeCaCO3": "Percent Lime CaCO3",
+				"PercentDolomiteCaMg2": "Percent Dolomite CaMg(CO3)2",
+				"PercentGypsum": "Percent Gypsum",
+				"Total": "Total"
+			},
+			"Rows": {
+				"Row": {
+					"Product": {
+						"CellType": "text"
+					},
+					"AmountApplied": {
+						"CellType": "number",
+						"Unit": "t/hectare"
+					},
+					"ApplicationArea": {
+						"CellType": "formula",
+						"Unit": "ha"
+					},
+					"TotalAmountApplied": {
+						"CellType": "formula",
+						"Unit": "t"
+					},
+					"PercentLimeCaCO3": {
+						"CellType": "percent"
+					},
+					"PercentDolomiteCaMg2": {
+						"CellType": "percent",
+						"Unit": "CO3"
+					},
+					"PercentGypsum": {
+						"CellType": "percent"
+					},
+					"Total": {
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "Table_Input_OrganicFertiliser",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 7,
+			"ColumnNames": {
+				"OrganicFertiliserType": "Organic fertiliser type (select)",
+				"PercentageOfNInFertiliser": "Percentage of N in fertiliser",
+				"AmountApplied": "Amount applied (kg/hectare)",
+				"AmountNApplied": "Amount N applied (kg/hectare)",
+				"ApplicationArea": "Application area (ha)",
+				"TotalOrganicFertliserApplied": "Total organic fertliser applied",
+				"TotalNitrogenApplied": "Total nitrogen applied (kg)"
+			},
+			"Rows": {
+				"Row": {
+					"OrganicFertiliserType": {
+						"CellType": "select",
+						"Options": {
+							"Manure - Cattle": "Manure - Cattle",
+							"Manure - Poultry": "Manure - Poultry",
+							"Manure - Swine": "Manure - Swine",
+							"Manure - Other": "Manure - Other",
+							"Other organic fertiliser": "Other organic fertiliser"
+						}
+					},
+					"PercentageOfNInFertiliser": {
+						"CellType": "percent"
+					},
+					"AmountApplied": {
+						"CellType": "number",
+						"Unit": "kg/hectare"
+					},
+					"AmountNApplied": {
+						"CellType": "formula",
+						"Unit": "kg/hectare"
+					},
+					"ApplicationArea": {
+						"CellType": "formula",
+						"Unit": "ha"
+					},
+					"TotalOrganicFertliserApplied": {
+						"CellType": "formula"
+					},
+					"TotalNitrogenApplied": {
+						"CellType": "formula",
+						"Unit": "kg"
+					}
+				}
+			}
+		}
+	]
+}

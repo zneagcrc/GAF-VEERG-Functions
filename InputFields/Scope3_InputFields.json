@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"generatedFrom": "13_Scope3_WIP_v14.xlsx",
-	"generatedAt": "2026-08-19T00:05:27Z",
+	"generatedAt": "2026-08-31T00:09:30Z",
 	"InputCells": [
 		{
 			"CellName": "X_Cell_Site_FarmName",
@@ -665,7 +665,7 @@
 						"CellType": "formula"
 					},
 					"ApplicationArea": {
-						"CellType": "number",
+						"CellType": "formula",
 						"Unit": "ha"
 					},
 					"Density": {
@@ -2173,8 +2173,9 @@
 		{
 			"TableName": "Table_Input_SolidWaste",
 			"MatrixType": "RowsToCols",
-			"NumberOfCols": 5,
+			"NumberOfCols": 6,
 			"ColumnNames": {
+				"Description": "Description",
 				"TreatmentType": "Treatment type (select)",
 				"WasteType": "Waste type (select)",
 				"TreatmentLocation": "Treatment location (select)",
@@ -2183,6 +2184,9 @@
 			},
 			"Rows": {
 				"Row": {
+					"Description": {
+						"CellType": "text"
+					},
 					"TreatmentType": {
 						"CellType": "select",
 						"Options": {
@@ -2255,33 +2259,6 @@
 						}
 					}
 				}
-			},
-			"FixedRows": true,
-			"NumberOfRows": 23,
-			"RowLabels": {
-				"CompostPaperAndCardboardOnSite": "Compost paper and cardboard on site (tonnes)",
-				"CompostPaperAndCardboardOnSite2": "Compost paper and cardboard on site (m3)",
-				"CompostFoodWasteOnSite": "Compost food waste on site (tonnes)",
-				"CompostFoodWasteOnSite2": "Compost food waste on site (m3)",
-				"LandfillFoodWasteOffsite": "Landfill food waste offsite (tonnes)",
-				"LandfillFoodWasteOffsite2": "Landfill food waste offsite (m3)",
-				"LandfillFoodWasteOnSite": "Landfill food waste on site (tonnes)",
-				"LandfillFoodWasteOnSite2": "Landfill food waste on site (m3)",
-				"LandfillPaperOffsite": "Landfill Paper offsite (tonnes)",
-				"LandfillPaperWasteOffsite": "Landfill Paper waste offsite (m3)",
-				"LandfillPaperWasteOnSite": "Landfill Paper waste on site (tonnes)",
-				"LandfillPaperOnSite": "Landfill Paper on site (m3)",
-				"LandfillGreenWasteOffsite": "Landfill Green waste offsite (tonnes)",
-				"LandfillGreenWasteOffsite2": "Landfill Green waste offsite (m3)",
-				"LandfillGreenWasteOnSite": "Landfill Green waste on site (tonnes)",
-				"LandfillGreenWasteOnSite2": "Landfill Green waste on site (m3)",
-				"IncinerationPaperAndCardboardOnSite": "Incineration paper and cardboard on site (tonnes)",
-				"IncinerationPaperAndCardboardOnSite2": "Incineration paper and cardboard on site (m3)",
-				"IncinerationGreenWasteOnSite": "Incineration green waste on site (tonnes)",
-				"IncinerationGreenWasteOnSite2": "Incineration green waste on site (m3)",
-				"IncinerationGreenWasteOffsite": "Incineration green waste offsite (tonnes)",
-				"IncinerationGreenWasteOffsite2": "Incineration green waste offsite (m3)",
-				"IncinerationGreenWasteOnSite3": "Incineration green waste on site (m3)"
 			}
 		},
 		{

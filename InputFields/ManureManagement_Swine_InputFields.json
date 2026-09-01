@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"generatedFrom": "4_5_ManureManagement_Swine_WIP_v06.xlsx",
-	"generatedAt": "2026-08-19T00:06:25Z",
+	"generatedAt": "2026-08-31T00:10:49Z",
 	"InputCells": [
 		{
 			"CellName": "X_Cell_Site_FarmName",
@@ -253,6 +253,48 @@
 	],
 	"InputTables": [
 		{
+			"TableName": "Table_Input_LivestockSales",
+			"MatrixType": "RowsToCols",
+			"NumberOfCols": 6,
+			"ColumnNames": {
+				"TransactionName": "Transaction name",
+				"Class": "Class (select)",
+				"SaleDate": "Sale date",
+				"HeadSold": "Head sold",
+				"AverageWeightPerHead": "Average weight per head (kg)",
+				"TotalLiveweightSold": "Total liveweight sold"
+			},
+			"Rows": {
+				"Row": {
+					"TransactionName": {
+						"CellType": "text"
+					},
+					"Class": {
+						"CellType": "select",
+						"Options": {
+							"Boars": "Boars",
+							"Sows": "Sows",
+							"Gilts": "Gilts",
+							"Others": "Others"
+						}
+					},
+					"SaleDate": {
+						"CellType": "date"
+					},
+					"HeadSold": {
+						"CellType": "number"
+					},
+					"AverageWeightPerHead": {
+						"CellType": "number",
+						"Unit": "kg"
+					},
+					"TotalLiveweightSold": {
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
 			"TableName": "X_Table_Swine_HerdMovement",
 			"MatrixType": "ColsToRows",
 			"NumberOfRows": 3,
@@ -276,6 +318,51 @@
 						"Col": 2,
 						"Label": "Average number of head between 01 Jan 24 and 31 Dec 24",
 						"CellType": "number"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_FeedIntake_Method1",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 2,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Boars": "Boars",
+				"Sows": "Sows",
+				"Gilts": "Gilts",
+				"Others": "Others"
+			},
+			"Cols": {
+				"Column": {
+					"FeedIntake": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Feed intake",
+						"CellType": "formula"
+					}
+				}
+			}
+		},
+		{
+			"TableName": "X_Table_Swine_FeedIntake_Method2",
+			"MatrixType": "ColsToRows",
+			"NumberOfRows": 2,
+			"NumberOfCols": 4,
+			"ColumnNames": {
+				"Boars": "Boars",
+				"Sows": "Sows",
+				"Gilts": "Gilts",
+				"Others": "Others"
+			},
+			"Cols": {
+				"Column": {
+					"FeedIntake": {
+						"Row": 2,
+						"Col": 2,
+						"Label": "Feed intake",
+						"CellType": "number",
+						"CanOverWriteFormula": true
 					}
 				}
 			}

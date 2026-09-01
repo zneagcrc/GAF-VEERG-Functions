@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"generatedFrom": "Enterprise_PastureBeef_WIP_v01.xlsx",
-	"generatedAt": "2026-08-19T00:28:04Z",
+	"generatedAt": "2026-08-31T00:14:21Z",
 	"InputCells": [
 		{
 			"CellName": "X_Cell_Site_FarmName",
@@ -55,7 +55,9 @@
 			"CellName": "X_Cell_Enteprise_LiveweightGrown_Method2",
 			"Label": "Liveweight grown - method 2",
 			"CellType": "number",
-			"CanOverWriteFormula": true
+			"CanOverWriteFormula": false,
+			"Hidden": true,
+			"ExcelExcluded": true
 		},
 		{
 			"CellName": "X_Cell_Enteprise_ManureProduced_Method1",
@@ -66,7 +68,9 @@
 			"CellName": "X_Cell_Enteprise_ManureProduced_Method2",
 			"Label": "Manure produced - method 2",
 			"CellType": "number",
-			"CanOverWriteFormula": true
+			"CanOverWriteFormula": false,
+			"Hidden": true,
+			"ExcelExcluded": true
 		},
 		{
 			"CellName": "X_Cell_Enteprise_PercentManureSold",
@@ -306,6 +310,8 @@
 			"Unit": "Tonnes dry matter / hectare",
 			"CanOverWriteFormula": true,
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Pasture yield",
+			"ChatHelp": true,
 			"DefaultDataDocumentType": "JSON",
 			"DefaultDataFile": "node_modules/gaf-veerg-functions/generated-sourcedata/AgResidue_SourceData.sourcedata.json",
 			"DefaultDataLocation": null
@@ -370,6 +376,7 @@
 			"CellType": "number",
 			"Unit": "kWh",
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Electricity consumption",
 			"DependentOn": "X_Cell_Electricity_CalculationMethod",
 			"NotUsedWhen": {
 				"Field": "X_Cell_Electricity_CalculationMethod",
@@ -393,6 +400,7 @@
 				"National": "National"
 			},
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Electricity consumption",
 			"DependentOn": "X_Cell_Electricity_CalculationMethod",
 			"NotUsedWhen": {
 				"Field": "X_Cell_Electricity_CalculationMethod",
@@ -405,6 +413,7 @@
 			"CellType": "number",
 			"Unit": "kWh",
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Electricity consumption",
 			"DependentOn": "X_Cell_Electricity_CalculationMethod",
 			"NotUsedWhen": {
 				"Field": "X_Cell_Electricity_CalculationMethod",
@@ -417,6 +426,7 @@
 			"CellType": "percent",
 			"Unit": "percent",
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Electricity consumption",
 			"DependentOn": "X_Cell_Electricity_CalculationMethod",
 			"NotUsedWhen": {
 				"Field": "X_Cell_Electricity_CalculationMethod",
@@ -429,6 +439,7 @@
 			"CellType": "percent",
 			"Unit": "percent",
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Electricity generation",
 			"DependentOn": "X_Cell_Electricity_CalculationMethod",
 			"NotUsedWhen": {
 				"Field": "X_Cell_Electricity_CalculationMethod",
@@ -441,6 +452,7 @@
 			"CellType": "number",
 			"Unit": "kWh",
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Electricity consumption",
 			"DependentOn": "X_Cell_Electricity_CalculationMethod",
 			"NotUsedWhen": {
 				"Field": "X_Cell_Electricity_CalculationMethod",
@@ -644,7 +656,9 @@
 						"CellType": "formula"
 					}
 				}
-			}
+			},
+			"CanMarkAsNotUsed": true,
+			"AllowsAttachment": true
 		},
 		{
 			"TableName": "X_Table_Result_ActivityPeriodEmissions_RowsToCols",
@@ -662,7 +676,8 @@
 						"Row": 2,
 						"Col": 1,
 						"Header": "Emissions calculation cycle",
-						"CellType": "formula"
+						"CellType": "formula",
+						"CanOverWriteFormula": false
 					},
 					"CO2EEmissionsMethod1": {
 						"Row": 2,
@@ -697,7 +712,8 @@
 						"Row": 2,
 						"Col": 1,
 						"Header": "Emissions calculation cycle",
-						"CellType": "formula"
+						"CellType": "formula",
+						"CanOverWriteFormula": false
 					},
 					"CO2RemovedAttributedToThisEnterprise": {
 						"Row": 2,
@@ -1204,6 +1220,7 @@
 			"ChatHelp": true,
 			"CanRollOver": true,
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Liveweight",
 			"NotUsedWhen": {
 				"Field": "X_Cell_PastureBeef_Method1OrMethod2",
 				"Equals": "Method 1"
@@ -1374,6 +1391,7 @@
 			"ChatHelp": true,
 			"CanRollOver": true,
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Liveweight gain",
 			"NotUsedWhen": {
 				"Field": "X_Cell_PastureBeef_Method1OrMethod2",
 				"Equals": "Method 1"
@@ -1543,6 +1561,7 @@
 			},
 			"ChatHelp": true,
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Dry matter digestibility of diet",
 			"NotUsedWhen": {
 				"Field": "X_Cell_PastureBeef_Method1OrMethod2",
 				"Equals": "Method 1"
@@ -1713,6 +1732,7 @@
 			"ChatHelp": true,
 			"CanRollOver": true,
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Crude protein in diet",
 			"NotUsedWhen": {
 				"Field": "X_Cell_PastureBeef_Method1OrMethod2",
 				"Equals": "Method 1"
@@ -1769,6 +1789,7 @@
 				}
 			},
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Livestock sales",
 			"DependentOn": [
 				"X_Cell_PastureBeef_Method1OrMethod2",
 				"X_Cell_PastureBeef_HerdMovementMethod"
@@ -1856,6 +1877,7 @@
 			},
 			"CanMarkAsNotUsed": true,
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Livestock purchases",
 			"DependentOn": [
 				"X_Cell_PastureBeef_Method1OrMethod2",
 				"X_Cell_PastureBeef_HerdMovementMethod"
@@ -2100,7 +2122,8 @@
 				}
 			},
 			"CanMarkAsNotUsed": true,
-			"AllowsAttachment": true
+			"AllowsAttachment": true,
+			"DataQualityMapping": "Branded inorganic fertiliser applications"
 		},
 		{
 			"TableName": "Table_Input_InorganicFertiliser_Custom",
@@ -2273,7 +2296,8 @@
 				}
 			},
 			"CanMarkAsNotUsed": true,
-			"AllowsAttachment": true
+			"AllowsAttachment": true,
+			"DataQualityMapping": "Custom inorganic fertiliser blend applications"
 		},
 		{
 			"TableName": "Table_Input_Lime",
@@ -2322,7 +2346,8 @@
 				}
 			},
 			"CanMarkAsNotUsed": true,
-			"AllowsAttachment": true
+			"AllowsAttachment": true,
+			"DataQualityMapping": "Lime applications"
 		},
 		{
 			"TableName": "Table_Input_OrganicFertiliser",
@@ -2374,7 +2399,8 @@
 				}
 			},
 			"CanMarkAsNotUsed": true,
-			"AllowsAttachment": true
+			"AllowsAttachment": true,
+			"DataQualityMapping": "Organic fertiliser applications"
 		},
 		{
 			"TableName": "Table_Input_Fuel",
@@ -2469,7 +2495,11 @@
 				}
 			},
 			"CanMarkAsNotUsed": true,
-			"AllowsAttachment": true
+			"AllowsAttachment": true,
+			"DataQualityMapping": [
+				"Fuel purchases",
+				"Fuel consumption"
+			]
 		},
 		{
 			"TableName": "Table_Input_RECSurrendered",
@@ -2514,6 +2544,7 @@
 			},
 			"ChatHelp": true,
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Electricity generation",
 			"DependentOn": "X_Cell_Electricity_CalculationMethod",
 			"NotUsedWhen": {
 				"Field": "X_Cell_Electricity_CalculationMethod",
@@ -2559,6 +2590,7 @@
 			},
 			"ChatHelp": true,
 			"AllowsAttachment": true,
+			"DataQualityMapping": "Electricity generation",
 			"DependentOn": "X_Cell_Electricity_CalculationMethod",
 			"NotUsedWhen": {
 				"Field": "X_Cell_Electricity_CalculationMethod",
@@ -4061,7 +4093,8 @@
 						"CellType": "number"
 					},
 					"Cause": {
-						"CellType": "text"
+						"CellType": "text",
+						"Optional": true
 					}
 				}
 			}
@@ -4198,6 +4231,15 @@
 				]
 			},
 			{
+				"Name": "Herd diet",
+				"Items": [
+					"X_Table_PastureBeef_CrudeProtein_Method1",
+					"X_Table_PastureBeef_DryMatterDigestibility_Method1",
+					"X_Table_PastureBeef_CrudeProtein_Method2",
+					"X_Table_PastureBeef_DryMatterDigestibility_Method2"
+				]
+			},
+			{
 				"Name": "Pasture management",
 				"Items": [
 					"X_Cell_Pasture_PastureType",
@@ -4209,15 +4251,6 @@
 					"Table_Input_InorganicFertiliser_Custom",
 					"Table_Input_Lime",
 					"Table_Input_OrganicFertiliser"
-				]
-			},
-			{
-				"Name": "Herd diet",
-				"Items": [
-					"X_Table_PastureBeef_CrudeProtein_Method1",
-					"X_Table_PastureBeef_DryMatterDigestibility_Method1",
-					"X_Table_PastureBeef_CrudeProtein_Method2",
-					"X_Table_PastureBeef_DryMatterDigestibility_Method2"
 				]
 			},
 			{

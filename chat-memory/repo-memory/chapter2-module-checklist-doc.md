@@ -75,6 +75,28 @@ per production system).
   this (2026-08) - modeled directly on Swine's config minus the Enteric
   module, same open question about Input - Freight left unresolved.
 
+- Beef Feedlot (2026-08): Scope 1 = Enteric Methane 3.1, Manure Management
+  4.1, Transport Fuel 8.1, Stationary Fuel 8.2, Solid Waste Treatment 10.1.
+  Scope 2 = Purchased Electricity 14.1. Scope 3 = Purchased Livestock 15.1,
+  Purchased Feed 15.2, Purchased Mineral Supplements 15.3, Purchased
+  Services/Contractors 15.7, Other Purchased Goods and Services 15.10,
+  Upstream Emission from Fuel 15.11, Upstream Emissions of Purchased
+  Electricity 15.12, Management of Waste 15.13. NO Fertiliser (Ch 5) or
+  Agricultural Residue (Ch 6) - penned cattle, no pasture. NOTE: unlike
+  Swine/Poultry, Feedlot's table DOES include 15.3 Purchased Mineral
+  Supplements - don't drop that row when picking Scope3 results.
+  `Enterprises/Enterprise_Feedlot.json` drafted from this (2026-08) - same
+  shape as Swine/Poultry (constants-only Fertiliser for the manure-sent-
+  off-site dependency, same Input - Freight open question), plus the
+  IMPORT-ORDER duplicate-input-sheet situation Swine also has (Enteric_
+  Feedlot and ManureManagement_Feedlot both ship 'Input - Feedlot' -
+  ManureManagement picked as canonical via named-range count: 20 vs 3).
+  Also found: `3_1_Enteric_Feedlot_WIP_v02.xlsx`'s enteric methane equation
+  has ONLY a `_Result_Method2` name, no Method1 at all (confirmed via both
+  `name-result-cells.ps1 -WorkbookPath` dry-run - "nothing to name" - and a
+  direct defined-name scan) - genuinely no Method 1 alternative exists for
+  feedlot enteric fermentation in this workbook, not a naming gap.
+
 - Beef pasture/range/paddock and Dairy: NOT yet re-verified against their
   own Module Map tables (only checked via the prose sentence, which is now
   known to be unreliable) - they happen to match their existing working
