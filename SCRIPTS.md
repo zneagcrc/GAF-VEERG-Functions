@@ -338,6 +338,69 @@ npm run build:input-fields:dry
 
 ---
 
+## npm run build-enterprise
+
+Assembles each `Enterprises\Enterprise_<Id>.json` into a self-contained
+`Excel\Enterprises\Enterprise_<Id>_WIP_v01.xlsx` (fresh template copy → import
+module sheets → localise refs → nav menu → merge Excel Labs modules → prune shadow
+names → `fullCalcOnLoad`). With no id it builds **all** enterprises; each runs in
+its own `powershell` process so a crash in one does not abort the rest, and a
+summary table (`built` / `skipped` / `FAILED` + duration) prints at the end.
+
+```powershell
+npm run build-enterprise                       # all enterprises
+npm run build-enterprise -- Swine              # one (positional id)
+npm run build-enterprise:dry                   # preview, no writes
+npm run prune-enterprise-names -- -EnterpriseId Dairy   # shadow-name prune only, no rebuild
+```
+
+**Incremental flags** (auto-discovery / "build all" mode only):
+
+| Flag | Effect |
+|---|---|
+| `-Only Swine,Poultry` | build only these ids (comma- or space-separated) |
+| `-From Poultry` | resume: build this id and every id after it (discovery order) |
+| `-Skip Dairy,Feedlot` | build all **except** these ids |
+| `-Force` | rebuild even enterprises whose output is already up to date |
+
+**Freshness skip (default in "build all" mode):** an enterprise is skipped when its
+`Enterprise_<Id>_WIP_v01.xlsx` is newer than its config, `_ModuleRegistry.json`,
+its template, every resolved module source workbook, **and the build scripts**
+(`build-enterprise-excel.ps1` + everything it dot-sources). So after a small change,
+`npm run build-enterprise` only rebuilds what is stale. `-DryRun` and explicitly
+named (`-Only` / `-From`) enterprises always build; `-Force` rebuilds everything.
+A change to any build script invalidates **all** outputs — that is intentional; use
+`-Only <id>` to test one.
+
+```powershell
+npm run build-enterprise -- -From Poultry              # crash mid-run? resume here
+npm run build-enterprise -- -Only Swine -Force         # force one
+npm run build-enterprise -- -Skip PastureBeef          # everything else, freshness-gated
+```
+
+Exit code is 1 if any enterprise failed; the warning lists them with a
+`-- -Only <ids>` retry command. Close every workbook the build touches in Excel
+first — an open module/template/output file fails the pre-flight lock check.
+
+---
+
+## npm run build-scope3
+
+Assembles `Excel\13_Scope3_Template_WIP_v*.xlsx` + module source sheets into
+`Excel\13_Scope3_WIP_v*.xlsx` (same pipeline as an enterprise, one fixed output).
+
+```powershell
+npm run build-scope3          # freshness-gated
+npm run build-scope3 -- -Force # rebuild regardless
+npm run build-scope3 -- -DryRun
+```
+
+Same **freshness gate** as `build-enterprise`: skips the rebuild when the output is
+newer than the template, every source workbook, and the build scripts. `-Force`
+overrides; `-DryRun` always proceeds.
+
+---
+
 ## npm run create-test-excel
 
 Generates a ready-to-run **test workbook** for a single module by copying its source

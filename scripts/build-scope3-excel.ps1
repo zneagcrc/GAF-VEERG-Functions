@@ -42,7 +42,8 @@ param(
   [string] $RepoRoot = (Split-Path $PSScriptRoot -Parent),
   [string] $TemplatePath,
   [string] $OutputPath,
-  [switch] $DryRun
+  [switch] $DryRun,
+  [switch] $Force   # rebuild even when the output is already up to date
 )
 
 Set-StrictMode -Version Latest
@@ -684,8 +685,6 @@ Write-Host ("Output   : {0}" -f $OutputPath)
 Write-Host ("Mode     : {0}" -f $(if ($DryRun) { 'DRY RUN' } else { 'BUILD' }))
 Write-Host ''
 
-$templateNameMap = Get-WorkbookScopedNameMap -Path $TemplatePath
-
 # --- Resolve source workbooks ----------------------------------------------
 $sourceHints = @($ImportMap | ForEach-Object { $_.Source } | Select-Object -Unique)
 $hintToResolved = @{}
@@ -697,6 +696,41 @@ foreach ($h in ($sourceHints | Sort-Object)) {
   Write-Host ("  {0,-34} -> {1}" -f $h, [System.IO.Path]::GetFileName($hintToResolved[$h]))
 }
 Write-Host ''
+
+# --- Freshness gate ------------------------------------------------------------
+# Skip the (multi-minute) rebuild when the output already exists and is newer
+# than the template, every source workbook, and the build scripts. -Force
+# overrides; -DryRun always proceeds so it can show what a build would do.
+if (-not $Force -and -not $DryRun -and (Test-Path -LiteralPath $OutputPath)) {
+  $deps = New-Object System.Collections.Generic.List[string]
+  $deps.Add($TemplatePath)
+  foreach ($s in $resolvedSources) { $deps.Add($s) }
+  foreach ($s in @($PSCommandPath,
+                   (Join-Path $PSScriptRoot 'nav-menu.ps1'),
+                   (Join-Path $PSScriptRoot 'afe-named-functions.ps1'),
+                   (Join-Path $PSScriptRoot 'worksheet-view.ps1'),
+                   (Join-Path $PSScriptRoot 'file-access.ps1'))) {
+    if (Test-Path -LiteralPath $s) { $deps.Add((Resolve-Path -LiteralPath $s).Path) }
+  }
+  $outTime = (Get-Item -LiteralPath $OutputPath).LastWriteTimeUtc
+  $newest = $null; $newestName = $null
+  foreach ($d in (@($deps) | Select-Object -Unique)) {
+    if (-not (Test-Path -LiteralPath $d)) { continue }
+    $t = (Get-Item -LiteralPath $d).LastWriteTimeUtc
+    if ($null -eq $newest -or $t -gt $newest) { $newest = $t; $newestName = (Split-Path $d -Leaf) }
+  }
+  if ($null -ne $newest -and $newest -le $outTime) {
+    Write-Host ("Output up to date (built {0:yyyy-MM-dd HH:mm}; newest input {1} {2:yyyy-MM-dd HH:mm}). Nothing to do - pass -Force to rebuild." -f `
+      $outTime.ToLocalTime(), $newestName, $newest.ToLocalTime()) -ForegroundColor Green
+    return
+  }
+  Write-Host ("Rebuild needed: {0} changed {1:yyyy-MM-dd HH:mm} > output {2:yyyy-MM-dd HH:mm}." -f $newestName, $newest.ToLocalTime(), $outTime.ToLocalTime())
+  Write-Host ''
+}
+
+# Read once the build is committed to running (opens the template zip - must be
+# after the freshness gate so an up-to-date run never touches a locked template).
+$templateNameMap = Get-WorkbookScopedNameMap -Path $TemplatePath
 
 # Pre-flight: template + every source must exist and be closed; the output must
 # not be open (a build overwrites it). Fails fast with a clear list otherwise.

@@ -5,7 +5,13 @@ param(
   [string] $ConfigPath,
   [string] $OutputPath,
   [switch] $DryRun,
-  [switch] $PruneShadowsOnly
+  [switch] $PruneShadowsOnly,
+
+  # --- Auto-discovery ("build everything") mode only -------------------------
+  [string[]] $Only,   # build only these enterprise ids (e.g. -Only Swine,Poultry)
+  [string[]] $Skip,   # build all EXCEPT these ids
+  [string]   $From,   # resume: build this id and every id after it (discovery order)
+  [switch]   $Force   # rebuild even enterprises whose output is already up to date
 )
 
 Set-StrictMode -Version Latest
@@ -34,28 +40,11 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem | Out-Null
 # Shared pre-flight file-accessibility guard (Assert-FilesAccessible).
 . (Join-Path $PSScriptRoot 'file-access.ps1')
 
-# ---------------------------------------------------------------------------
-# Auto-discovery: with neither -ConfigPath nor -EnterpriseId, build every
-# enterprise config (Enterprises\Enterprise_*.json) in turn by re-invoking
-# this script once per config.
-# ---------------------------------------------------------------------------
-if ([string]::IsNullOrWhiteSpace($ConfigPath) -and [string]::IsNullOrWhiteSpace($EnterpriseId)) {
-  $enterprisesDir = Join-Path $RepoRoot 'Enterprises'
-  if (-not (Test-Path -LiteralPath $enterprisesDir)) {
-    throw "Enterprises directory not found: $enterprisesDir"
-  }
-  $discovered = @(Get-ChildItem -LiteralPath $enterprisesDir -File -Filter 'Enterprise_*.json' | Sort-Object Name)
-  if ($discovered.Count -eq 0) {
-    throw "No Enterprise_*.json configs found in $enterprisesDir"
-  }
-  Write-Host ("Auto-discovered {0} enterprise config(s) in {1}." -f $discovered.Count, $enterprisesDir)
-  foreach ($cfg in $discovered) {
-    Write-Host ''
-    Write-Host ("=== Building {0} ===" -f $cfg.Name)
-    & $PSCommandPath -RepoRoot $RepoRoot -ConfigPath $cfg.FullName -DryRun:$DryRun -PruneShadowsOnly:$PruneShadowsOnly
-  }
-  return
-}
+# Auto-discovery ("build everything") mode: neither -ConfigPath nor -EnterpriseId.
+# The actual loop runs from Invoke-EnterpriseBuildLoop below, dispatched just
+# before the single-enterprise "Main" section so the helper functions it needs
+# (Resolve-SourceWorkbook, Test-EnterpriseStale) are already defined.
+$script:__LoopMode = [string]::IsNullOrWhiteSpace($ConfigPath) -and [string]::IsNullOrWhiteSpace($EnterpriseId)
 
 # ---------------------------------------------------------------------------
 # Configuration loading
@@ -452,6 +441,211 @@ function Mark-Phase {
   $elapsed = $script:__phaseTimer.Elapsed
   Write-Host ("  [timing] {0}: {1:mm\:ss\.fff}" -f $Name, $elapsed) -ForegroundColor DarkGray
   $script:__phaseTimer.Restart()
+}
+
+# ---------------------------------------------------------------------------
+# Auto-discovery ("build everything") mode
+# ---------------------------------------------------------------------------
+
+# Files whose modification should force an enterprise's built output to be
+# rebuilt: its config + the module registry + the template workbook + every
+# resolved module source workbook + the build scripts themselves. Returns the
+# dependency list plus the expected output path.
+function Get-EnterpriseDependencyInfo {
+  param([string] $RepoRoot, [string] $ConfigPath)
+
+  $cfg    = Get-Content -Raw -LiteralPath $ConfigPath | ConvertFrom-Json
+  $cfgDir = Split-Path -Parent $ConfigPath
+  $regName = if ($cfg.options -and $cfg.options.registry) { [string] $cfg.options.registry } else { '_ModuleRegistry.json' }
+  $regPath = Join-Path $cfgDir $regName
+  $reg = if (Test-Path -LiteralPath $regPath) { Get-Content -Raw -LiteralPath $regPath | ConvertFrom-Json } else { $null }
+
+  $excelDir = Join-Path $RepoRoot 'Excel'
+  $entDir   = Join-Path $excelDir 'Enterprises'
+
+  $deps = New-Object System.Collections.Generic.List[string]
+  $deps.Add($ConfigPath)
+  if (Test-Path -LiteralPath $regPath) { $deps.Add((Resolve-Path -LiteralPath $regPath).Path) }
+
+  # Build scripts (this file + everything it dot-sources): a logic change must
+  # invalidate every output. Change build code -> plain `build-enterprise` still
+  # rebuilds all; use -Only to test one.
+  foreach ($s in @($PSCommandPath,
+                    (Join-Path $PSScriptRoot 'nav-menu.ps1'),
+                    (Join-Path $PSScriptRoot 'afe-named-functions.ps1'),
+                    (Join-Path $PSScriptRoot 'worksheet-view.ps1'),
+                    (Join-Path $PSScriptRoot 'external-links.ps1'),
+                    (Join-Path $PSScriptRoot 'file-access.ps1'))) {
+    if (Test-Path -LiteralPath $s) { $deps.Add((Resolve-Path -LiteralPath $s).Path) }
+  }
+
+  $tpl = [string] $cfg.enterprise.templateWorkbook
+  if ([string]::IsNullOrWhiteSpace($tpl) -and $null -ne $reg) { $tpl = [string] $reg.templateWorkbook }
+  if (-not [string]::IsNullOrWhiteSpace($tpl)) {
+    $tplPath = if ([System.IO.Path]::IsPathRooted($tpl)) { $tpl } else { Join-Path $entDir $tpl }
+    if (Test-Path -LiteralPath $tplPath) { $deps.Add((Resolve-Path -LiteralPath $tplPath).Path) }
+  }
+
+  if ($null -ne $reg) {
+    foreach ($m in @($cfg.modules)) {
+      $mid = if ($m -is [string]) { $m } else { [string] $m.id }
+      if ([string]::IsNullOrWhiteSpace($mid)) { continue }
+      $mod = $reg.modules.$mid
+      if ($null -eq $mod) { continue }
+      $hint = [string] $mod.sourceWorkbook
+      if ([string]::IsNullOrWhiteSpace($hint)) { continue }
+      try { $deps.Add((Resolve-SourceWorkbook -ExcelDir $excelDir -HintName $hint)) } catch { }
+    }
+  }
+
+  $outName = [string] $cfg.enterprise.outputWorkbook
+  $outPath = Join-Path $entDir $outName
+
+  return [pscustomobject]@{
+    OutputPath   = $outPath
+    Dependencies = @($deps | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique)
+  }
+}
+
+# $true if the enterprise output is missing or older than any of its inputs.
+function Test-EnterpriseStale {
+  param([string] $RepoRoot, [string] $ConfigPath)
+
+  $info = Get-EnterpriseDependencyInfo -RepoRoot $RepoRoot -ConfigPath $ConfigPath
+  if (-not (Test-Path -LiteralPath $info.OutputPath)) {
+    return [pscustomobject]@{ IsStale = $true; Reason = 'no output yet' }
+  }
+  $outTime = (Get-Item -LiteralPath $info.OutputPath).LastWriteTimeUtc
+  $newest = $null; $newestName = $null
+  foreach ($d in $info.Dependencies) {
+    if (-not (Test-Path -LiteralPath $d)) { continue }
+    $t = (Get-Item -LiteralPath $d).LastWriteTimeUtc
+    if ($null -eq $newest -or $t -gt $newest) { $newest = $t; $newestName = (Split-Path $d -Leaf) }
+  }
+  if ($null -ne $newest -and $newest -gt $outTime) {
+    return [pscustomobject]@{ IsStale = $true; Reason = ("{0} changed {1:yyyy-MM-dd HH:mm} > output {2:yyyy-MM-dd HH:mm}" -f $newestName, $newest.ToLocalTime(), $outTime.ToLocalTime()) }
+  }
+  return [pscustomobject]@{ IsStale = $false; Reason = ("up to date (built {0:yyyy-MM-dd HH:mm})" -f $outTime.ToLocalTime()) }
+}
+
+function Invoke-EnterpriseBuildLoop {
+  param(
+    [string]   $RepoRoot,
+    [switch]   $DryRun,
+    [switch]   $PruneShadowsOnly,
+    [string[]] $Only,
+    [string[]] $Skip,
+    [string]   $From,
+    [switch]   $Force
+  )
+
+  $enterprisesDir = Join-Path $RepoRoot 'Enterprises'
+  if (-not (Test-Path -LiteralPath $enterprisesDir)) { throw "Enterprises directory not found: $enterprisesDir" }
+  $discovered = @(Get-ChildItem -LiteralPath $enterprisesDir -File -Filter 'Enterprise_*.json' | Sort-Object Name)
+  if ($discovered.Count -eq 0) { throw "No Enterprise_*.json configs found in $enterprisesDir" }
+
+  $items = @(foreach ($c in $discovered) {
+    [pscustomobject]@{ Id = ($c.BaseName -replace '^(?i)Enterprise_', ''); Name = $c.Name; Config = $c.FullName }
+  })
+
+  # -Only / -Skip may arrive as one comma- or space-joined token (npm passes
+  # "Swine,Poultry" literally), so normalise to a lower-cased id set.
+  $splitIds = {
+    param($raw)
+    @($raw | ForEach-Object { $_ -split '[,;\s]+' } | Where-Object { $_ } | ForEach-Object { $_.ToLowerInvariant() })
+  }
+  $onlySet = @()
+  $skipSet = @()
+  if ($Only) { $onlySet = @(& $splitIds $Only) }
+  if ($Skip) { $skipSet = @(& $splitIds $Skip) }
+
+  if (-not [string]::IsNullOrWhiteSpace($From)) {
+    $idx = -1
+    for ($i = 0; $i -lt $items.Count; $i++) { if ($items[$i].Id -ieq $From.Trim()) { $idx = $i; break } }
+    if ($idx -lt 0) { throw ("-From '{0}' is not a known enterprise. Known: {1}" -f $From, (($items | ForEach-Object Id) -join ', ')) }
+    $items = @($items[$idx..($items.Count - 1)])
+  }
+  if ($onlySet.Count -gt 0) {
+    $items = @($items | Where-Object { $onlySet -contains $_.Id.ToLowerInvariant() })
+    if ($items.Count -eq 0) { throw ("-Only matched no enterprise (given: {0}; known: {1})" -f ($onlySet -join ','), (($discovered | ForEach-Object { $_.BaseName -replace '^(?i)Enterprise_', '' }) -join ',')) }
+  }
+  if ($skipSet.Count -gt 0) {
+    $items = @($items | Where-Object { $skipSet -notcontains $_.Id.ToLowerInvariant() })
+  }
+  if ($items.Count -eq 0) { Write-Host 'Nothing to build after -From / -Only / -Skip filters.'; return }
+
+  # Explicitly named enterprises (-Only / -From) always build; the freshness gate
+  # only applies to a plain "build everything" run.
+  $explicit = ((-not [string]::IsNullOrWhiteSpace($From)) -or ($onlySet.Count -gt 0))
+
+  Write-Host ("build-enterprise: {0} enterprise(s) selected - {1}" -f $items.Count, (($items | ForEach-Object Id) -join ', '))
+  if ($Force)  { Write-Host '  -Force: freshness check skipped, all selected rebuild.' }
+  if ($DryRun) { Write-Host '  -DryRun: freshness check skipped.' }
+
+  $results = New-Object System.Collections.Generic.List[object]
+
+  foreach ($item in $items) {
+    if (-not $Force -and -not $explicit -and -not $DryRun) {
+      $stale = $null
+      try { $stale = Test-EnterpriseStale -RepoRoot $RepoRoot -ConfigPath $item.Config } catch { $stale = $null }
+      if ($null -ne $stale -and -not $stale.IsStale) {
+        Write-Host ''
+        Write-Host ("=== SKIP  {0}  ({1}) ===" -f $item.Name, $stale.Reason) -ForegroundColor DarkGray
+        $results.Add([pscustomobject]@{ Id = $item.Id; Status = 'skipped'; Detail = $stale.Reason })
+        continue
+      }
+    }
+
+    Write-Host ''
+    Write-Host ("=== Building {0} ===" -f $item.Name) -ForegroundColor Cyan
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+
+    # Each enterprise runs in its OWN powershell process, so a hard crash /
+    # out-of-memory in one is contained and the loop carries on to the rest.
+    $childArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath,
+                   '-RepoRoot', $RepoRoot, '-ConfigPath', $item.Config)
+    if ($DryRun)           { $childArgs += '-DryRun' }
+    if ($PruneShadowsOnly) { $childArgs += '-PruneShadowsOnly' }
+
+    $status = 'built'
+    try {
+      & powershell @childArgs
+      if ($LASTEXITCODE -ne 0) { $status = 'FAILED' }
+    } catch {
+      $status = 'FAILED'
+      Write-Warning ("{0}: {1}" -f $item.Name, $_.Exception.Message)
+    }
+    $sw.Stop()
+
+    if ($status -eq 'FAILED') {
+      Write-Warning ("=== {0} FAILED after {1:mm\:ss} - continuing ===" -f $item.Name, $sw.Elapsed)
+    } else {
+      Write-Host ("=== {0} done in {1:mm\:ss} ===" -f $item.Name, $sw.Elapsed) -ForegroundColor Green
+    }
+    $results.Add([pscustomobject]@{ Id = $item.Id; Status = $status; Detail = ("{0:mm\:ss}" -f $sw.Elapsed) })
+    [GC]::Collect(); [GC]::WaitForPendingFinalizers()
+  }
+
+  Write-Host ''
+  Write-Host '===================== build-enterprise summary ====================='
+  foreach ($r in $results) {
+    $col = switch ($r.Status) { 'built' { 'Green' } 'skipped' { 'DarkGray' } default { 'Red' } }
+    Write-Host ("  {0,-26} {1,-8} {2}" -f $r.Id, $r.Status, $r.Detail) -ForegroundColor $col
+  }
+  Write-Host '==================================================================='
+
+  $failed = @($results | Where-Object { $_.Status -eq 'FAILED' })
+  if ($failed.Count -gt 0) {
+    $ids = (($failed | ForEach-Object Id) -join ',')
+    Write-Warning ("{0} enterprise(s) failed: {1}.  Retry:  npm run build-enterprise -- -Only {1}" -f $failed.Count, $ids)
+    exit 1
+  }
+}
+
+if ($script:__LoopMode) {
+  Invoke-EnterpriseBuildLoop -RepoRoot $RepoRoot -DryRun:$DryRun -PruneShadowsOnly:$PruneShadowsOnly `
+    -Only $Only -Skip $Skip -From $From -Force:$Force
+  return
 }
 
 # ---------------------------------------------------------------------------

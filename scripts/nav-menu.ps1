@@ -20,6 +20,13 @@
 # is drawn on uses that group's 'selected' style; all others use the default.
 # Column A is frozen (panes split at B1) on every sheet so the menu stays
 # visible while the user scrolls.
+#
+# On long sheets the menu items scroll out of view even though column A stays
+# frozen, so periodic "back to top" links (=HYPERLINK("#A1","<up> Back to top"),
+# style 'Back to top link') are dropped into the column-A gutter: the first one
+# eleven rows below the bottom menu item when the last value in columns B onward
+# is more than ten rows below it, then another every 30 rows down to that last
+# value.
 function Set-NavMenu {
   param(
     $Target,        # target workbook COM object
@@ -33,8 +40,21 @@ function Set-NavMenu {
   $titleStyle   = 'Menu section title'
   $defaultStyle = 'Menu link default'
   $logoStyle    = 'Input page heading'
+  $bttStyle     = 'Back to top link'   # named style already in the module workbooks
+  $bttLabel     = ([char]0x25B2).ToString() + ' Back to top'
   $firstMenuRow = 3      # A1 = logo, A2 = gap
   $clearToRow   = 160    # column A is a pure nav gutter; safe to blank below the logo
+
+  # "Back to top" links down column A on long sheets: after scrolling far down,
+  # the frozen column A is still visible but the menu items (rows 3..N) have
+  # scrolled off, so drop periodic links back to A1 into the gutter. Placement:
+  #  - only if the last value in columns B onward is > $bttGapBelowMenu rows
+  #    below the bottom menu item;
+  #  - first link on the ($bttGapBelowMenu + 1)th row below the menu bottom;
+  #  - if the last value is > $bttInterval rows below that first link, another
+  #    every $bttInterval rows down to the last value.
+  $bttGapBelowMenu = 10
+  $bttInterval     = 30
 
   # Fixed group definitions (order = render order). Title colour mirrors the
   # source design (INPUTS blue, CALCULATIONS green, APPENDICES grey).
@@ -100,6 +120,27 @@ function Set-NavMenu {
     }
   }
 
+  # Highest row carrying a value in column B or further right (a formula that
+  # currently evaluates to "" does not count). Uses Excel's own reverse Find,
+  # one COM call, so it stays cheap on large sheets.
+  $lastValueRowFromColB = {
+    param($ws)
+    $used = $null
+    try { $used = $ws.UsedRange } catch { return 0 }
+    if ($null -eq $used) { return 0 }
+    $bottom = [int] $used.Row + [int] $used.Rows.Count - 1
+    $right  = [int] $used.Column + [int] $used.Columns.Count - 1
+    if ($right -lt 2 -or $bottom -lt 1) { return 0 }
+    try {
+      $rng = $ws.Range($ws.Cells.Item(1, 2), $ws.Cells.Item($bottom, $right))
+      # Find(What, After, LookIn=xlValues(-4163), LookAt=xlPart(2),
+      #      SearchOrder=xlByRows(1), SearchDirection=xlPrevious(2), MatchCase)
+      $hit = $rng.Find('*', $rng.Cells.Item(1, 1), -4163, 2, 1, 2, $false)
+      if ($null -ne $hit) { return [int] $hit.Row }
+    } catch { }
+    return 0
+  }
+
   # Locate a donor sheet that carries the logo, to seed sheets missing it.
   $logoDonor = $null
   foreach ($ws in $Target.Worksheets) {
@@ -122,11 +163,23 @@ function Set-NavMenu {
       }
     }
 
-    # Blank the old menu (contents + formats) below the logo.
-    try { $ws.Range("A2:A$clearToRow").Clear() | Out-Null } catch { }
+    # Last row with a value in column B onward - drives the "back to top" links.
+    $lastDataRow = 0
+    try { $lastDataRow = [int] (& $lastValueRowFromColB $ws) } catch { $lastDataRow = 0 }
 
-    # Write the unified menu.
+    # Blank the whole column-A gutter below the logo (old menu + any old "back to
+    # top" links, hand-authored ones included) down to its last used cell, so no
+    # stale link is left orphaned below the new set. xlUp = -4162.
+    $colALast = 2
+    try { $colALast = [int] $ws.Cells.Item($ws.Rows.Count, 1).End(-4162).Row } catch { $colALast = 2 }
+    $clearBound = [Math]::Max([Math]::Max($clearToRow, $lastDataRow), $colALast) + $bttInterval + 5
+    try { $ws.Range("A2:A$clearBound").Clear() | Out-Null } catch { }
+
+    # Write the unified menu. Track the last row an actual title/link lands on -
+    # a 'blank' marker advances $r differently (PowerShell's switch/continue),
+    # so derive the menu bottom from what was really written, not a row count.
     $r = $firstMenuRow
+    $menuBottomRow = $firstMenuRow
     foreach ($row in $rows) {
       switch ($row.Kind) {
         'blank' { $r++ ; continue }
@@ -135,6 +188,7 @@ function Set-NavMenu {
           try { $cell.Style = (& $getStyle $titleStyle) } catch { }
           $cell.Value2 = $row.Text
           if ($null -ne $row.Color) { try { $cell.Font.Color = $row.Color } catch { } }
+          $menuBottomRow = $r
         }
         'link' {
           $cell = $ws.Cells.Item($r, 1)
@@ -143,9 +197,29 @@ function Set-NavMenu {
           # built-in 'Hyperlink' style, so the menu style must be set afterwards.
           $cell.Formula = "=HYPERLINK(""#'$($row.Target)'!A1"", ""$($row.Text)"")"
           try { $cell.Style = (& $getStyle $styleName) } catch { }
+          $menuBottomRow = $r
         }
       }
       $r++
+    }
+
+    # "Back to top" links down column A on long sheets.
+    if ($lastDataRow -gt ($menuBottomRow + $bttGapBelowMenu)) {
+      $bttRows = New-Object System.Collections.Generic.List[int]
+      $firstBtt = $menuBottomRow + $bttGapBelowMenu + 1
+      $bttRows.Add($firstBtt)
+      if ($lastDataRow -gt ($firstBtt + $bttInterval)) {
+        for ($br = $firstBtt + $bttInterval; $br -le $lastDataRow; $br += $bttInterval) { $bttRows.Add($br) }
+      }
+      foreach ($br in $bttRows) {
+        try {
+          $cell = $ws.Cells.Item($br, 1)
+          # Bare "#A1" targets A1 of the sheet the link sits on (matches the
+          # existing hand-authored "back to top" cells).
+          $cell.Formula = "=HYPERLINK(""#A1"", ""$bttLabel"")"
+          try { $cell.Style = (& $getStyle $bttStyle) } catch { }
+        } catch { Write-Warning ("Menu: could not write 'back to top' at A{0} on '{1}': {2}" -f $br, $sn, $_.Exception.Message) }
+      }
     }
 
     # Freeze column A (the nav menu) so it stays visible when the user scrolls.
