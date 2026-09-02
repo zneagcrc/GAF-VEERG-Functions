@@ -449,6 +449,69 @@ npm run expand-lambda-functions:auto
 
 ---
 
+## npm run restyle-fonts
+
+One-off restyling pass over the workbook XML (zip + XML directly, no Excel/COM):
+renames **Times New Roman -> Arial**, shrinks font sizes (everywhere a face or size
+is stored, not just named cell styles), and normalises **row heights**. Bold /
+italic / underline / colour / sub-/superscript are left untouched.
+
+```powershell
+npm run restyle-fonts                 # dry run, ALL Excel/*.xlsx + Excel/Enterprises/*.xlsx (templates INCLUDED)
+npm run restyle-fonts:commit          # apply + one-time backup to Excel/Backups/Backup_PreFont/
+powershell -File .\scripts\restyle-fonts.ps1 -WorkbookPath .\Excel\5_Fertiliser_WIP_v10.xlsx           # dry, single
+powershell -File .\scripts\restyle-fonts.ps1 -RowHeightsOnly -Commit                                   # row heights only, all workbooks
+```
+
+**Size rule** (same on nominal-px or nominal-pt values; DrawingML `sz` hundredths
+handled):
+
+| Original | Result |
+|---|---|
+| `>= 12pt` | `-2` (12->10, 14->12, 16->14, 20->18) |
+| `10`–`11pt` | `-1` (10->9, 11->10) |
+| `<= 9pt` | unchanged |
+
+**Row heights** (`-Row1Height` / `-RowHeight`, defaults 30 / 20): on every
+worksheet, an explicit `ht` + `customHeight="1"` is forced on **every** `<row>`
+element — row 1 to 30, all others to 20 — and `sheetFormatPr/@defaultRowHeight`
+is set to 20 for rows with no element. Rows that were deliberately taller (wrapped
+headings, spacers) are flattened too. Idempotent.
+
+**Parts covered:** `xl/styles.xml` (`<fonts>` table = every direct or styled cell
+font, plus `<dxfs>` conditional-format / table-style fonts); `xl/sharedStrings.xml`
+rich-text runs; `xl/theme/themeN.xml` `<fontScheme>` major/minor face; drawing &
+chart text runs (`xl/drawings/drawingN.xml`, `xl/charts/chartN.xml`);
+`xl/worksheets/sheetN.xml` `&"font"` / `&size` header-footer codes, inline-string
+runs, and row heights; `xl/commentsN.xml`. A renamed face has its `<scheme>` child
+dropped so the literal Arial shows regardless of the theme.
+
+**The font-resize pass is cumulative** (12->10 then 10->9 …). A `-Commit` that
+resized fonts stamps a `RestyleFontsApplied` custom document property (creating
+`docProps/custom.xml` + its content-type / relationship if absent). A later run on
+a marked workbook **suppresses just the resize pass** — the idempotent rename and
+row-height passes still apply — unless `-Force` is given. Rename-only /
+row-height-only runs never stamp the marker.
+
+**Variants / flags:**
+
+| Flag | Effect |
+|---|---|
+| `-StylesOnly` | only `xl/styles.xml` font work; skips theme, drawings, charts, shared strings, headers, comments AND row heights |
+| `-RowHeightsOnly` | only the worksheet row-height pass; skips all font work |
+| `-SkipRename` | leave faces alone (resize + row heights) |
+| `-SkipResize` | leave sizes alone (rename + row heights) |
+| `-SkipRowHeights` | leave row heights alone (font passes only) |
+| `-Row1Height` / `-RowHeight` | row-height values (default 30 / 20) |
+| `-Force` | re-run the resize pass on a workbook that already carries the marker |
+| `-Backup` | with `-Commit`, copy each workbook once to `Excel/Backups/Backup_PreFont/` first |
+| `-ShowMax <n>` | distinct-transform sample lines per workbook (default 30; `0` none, `-1` all) |
+
+Close the target workbooks in Excel first — an open workbook is locked and is
+reported (a warning, then skipped). Not part of `npm run build`.
+
+---
+
 ## npm run apply-names
 
 Rewrites cell/range references in formulas to use an existing **defined name**
