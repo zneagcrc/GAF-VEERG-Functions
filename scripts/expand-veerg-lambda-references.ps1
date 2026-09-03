@@ -762,7 +762,12 @@ function Get-ExcelCellResolvedValue {
     }
   }
 
-  return $value
+  # ,$value: PowerShell flattens a 2-D [object[,]] returned bare from a function
+  # into a 1-D array (row-major), which then loses its row/column shape - a
+  # horizontal 1xN spill would be rewritten down a column. The unary comma keeps
+  # the array intact across the return; callers unwrap it with one level of
+  # normal enumeration.
+  return , $value
 }
 
 function Get-ExcelCellResolvedValueText {
@@ -804,7 +809,10 @@ function Parse-ExcelArrayConstant {
     $table.Add($rowValues.ToArray())
   }
 
-  return $table.ToArray()
+  # ,(...): a single-row constant ({a,b,c}) would otherwise be unrolled by the
+  # return to just its row array, dropping the outer "list of rows" level and
+  # making a horizontal row look like a column. Keep the jagged shape intact.
+  return , ($table.ToArray())
 }
 
 function Get-ChooseColsMakeArrayStringValues {

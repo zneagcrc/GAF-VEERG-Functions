@@ -1,2 +1,3 @@
 - In scripts/expand-veerg-lambda-references.ps1, SourceData array results must be written as a matrix via cell offsets; stringifying spill/array values collapses multiple rows into one cell.
 - Zero-arg SourceData lambdas can contain either string literals or Excel array constants; preserve both when replacing formulas with values.
+- A bare `return $twoDArray` (or a bare 1-row jagged `return`) in a PS function is flattened to a 1-D array by the caller, losing row/col shape: a horizontal 1xN spill (e.g. Common_SourceData_FracLEACH_Data = MAKEARRAY(1,2,...)) then gets written down a column. Get-ExcelCellResolvedValue and Parse-ExcelArrayConstant return `, $value` to keep the shape.
