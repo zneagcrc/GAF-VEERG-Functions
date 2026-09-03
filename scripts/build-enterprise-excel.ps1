@@ -369,6 +369,120 @@ function Set-FullCalcOnLoad {
 }
 
 # ---------------------------------------------------------------------------
+# Rebuild workbook-scoped VEERG_*_Result_Method* names straight from the source
+# module workbooks. During assembly Excel can externalise these (and the
+# sheet-scoped-shadow prune + phantom-[N] strip then delete every copy), so a
+# custom Results sheet's "=Name" reads 0. This runs LAST, XML-only:
+#   - read each source workbook's WORKBOOK-scoped result names + RefersTo
+#   - keep only those whose single referenced sheet is present in the enterprise
+#   - in the enterprise workbook.xml: add the name if absent, or replace it if
+#     the current definition is externalised ([..]) / #REF! / wrong sheet;
+#     an already-correct local definition (e.g. from the template) is left alone
+#   - first source workbook to supply a locally-valid definition wins (import
+#     order), matching how duplicate input sheets pick a canonical module
+# Returns the number of names added or repaired.
+# ---------------------------------------------------------------------------
+function Restore-SourceWorkbookScopedNames {
+  param(
+    [string]   $TargetPath,
+    [string[]] $SourceWorkbookPaths
+  )
+
+  $mainNs = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
+  $reResult = [regex] '(?i)^VEERG_.*_Result_Method\d+$'
+  # '<sheet>'!$A$1  or  <sheet>!$A$1  -> capture the sheet token. SINGLE-quoted:
+  # a double-quoted PS string would eat "\$?" as the $? automatic variable.
+  $reSheetRef = [regex] '^=?''?(?<sheet>[^''!]+?)''?!(?<cell>\$?[A-Za-z]{1,3}\$?\d+(?::\$?[A-Za-z]{1,3}\$?\d+)?)$'
+
+  # --- read the source workbooks' workbook-scoped result names ---------------
+  $wanted = @{}   # name -> RefersTo body (first locally-valid wins)
+  foreach ($src in @($SourceWorkbookPaths | Select-Object -Unique)) {
+    if (-not (Test-Path -LiteralPath $src)) { continue }
+    $z = [System.IO.Compression.ZipFile]::Open($src, [System.IO.Compression.ZipArchiveMode]::Read)
+    try {
+      $e = $z.GetEntry('xl/workbook.xml'); if ($null -eq $e) { continue }
+      $r = [System.IO.StreamReader]::new($e.Open(), [System.Text.Encoding]::UTF8)
+      try { $txt = $r.ReadToEnd() } finally { $r.Dispose() }
+      foreach ($m in [regex]::Matches($txt, '<definedName\b([^>]*)>(.*?)</definedName>', [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+        $attrs = $m.Groups[1].Value
+        if ($attrs -match 'localSheetId') { continue }       # workbook-scoped only
+        $nm = ([regex]::Match($attrs, 'name="([^"]+)"')).Groups[1].Value
+        if (-not $reResult.IsMatch($nm)) { continue }
+        if ($wanted.ContainsKey($nm)) { continue }
+        # Decode XML entities: XmlElement.InnerText re-escapes on write, so store
+        # the decoded form (raw '&amp;' would become '&amp;amp;').
+        $bodyDec = $m.Groups[2].Value.Trim() -replace '&lt;', '<' -replace '&gt;', '>' -replace '&quot;', '"' -replace '&apos;', "'" -replace '&amp;', '&'
+        if ($bodyDec -match '\[' -or $bodyDec -match '#REF') { continue }
+        $sm = $reSheetRef.Match($bodyDec)
+        if (-not $sm.Success) { continue }
+        $wanted[$nm] = [pscustomobject]@{ Body = $bodyDec; Sheet = ($sm.Groups['sheet'].Value -replace "''", "'") }
+      }
+    } finally { $z.Dispose() }
+  }
+  if ($wanted.Count -eq 0) { return 0 }
+
+  # --- apply to the enterprise workbook.xml ---------------------------------
+  $restored = 0
+  $zip = [System.IO.Compression.ZipFile]::Open($TargetPath, [System.IO.Compression.ZipArchiveMode]::Update)
+  try {
+    $entry = $zip.GetEntry('xl/workbook.xml'); if ($null -eq $entry) { return 0 }
+    $reader = [System.IO.StreamReader]::new($entry.Open(), [System.Text.Encoding]::UTF8)
+    try { $xmlText = $reader.ReadToEnd() } finally { $reader.Dispose() }
+
+    $doc = New-Object System.Xml.XmlDocument
+    $doc.PreserveWhitespace = $true
+    $doc.LoadXml($xmlText)
+    $ns = New-Object System.Xml.XmlNamespaceManager($doc.NameTable)
+    $ns.AddNamespace('x', $mainNs)
+
+    $localSheets = New-Object 'System.Collections.Generic.HashSet[string]' ([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($sh in @($doc.SelectNodes('//x:sheets/x:sheet', $ns))) { [void] $localSheets.Add([string] $sh.GetAttribute('name')) }
+
+    $definedNamesNode = $doc.SelectSingleNode('//x:definedNames', $ns)
+    if ($null -eq $definedNamesNode) {
+      $wbNode = $doc.SelectSingleNode('//x:workbook', $ns)
+      $sheetsNode = $doc.SelectSingleNode('//x:sheets', $ns)
+      $definedNamesNode = $doc.CreateElement('definedNames', $mainNs)
+      if ($null -ne $sheetsNode) { [void] $wbNode.InsertAfter($definedNamesNode, $sheetsNode) } else { [void] $wbNode.AppendChild($definedNamesNode) }
+    }
+
+    foreach ($nm in $wanted.Keys) {
+      $spec = $wanted[$nm]
+      if (-not $localSheets.Contains($spec.Sheet)) { continue }   # referenced sheet not in this enterprise
+
+      $wbScoped = @($definedNamesNode.SelectNodes("x:definedName[@name='" + $nm + "' and not(@localSheetId)]", $ns))
+      $ok = $false
+      foreach ($n in $wbScoped) {
+        $cur = $n.InnerText
+        if (-not $ok -and $cur -notmatch '\[' -and $cur -notmatch '#REF' -and $reSheetRef.IsMatch(($cur -replace '&amp;','&'))) {
+          # already a clean local ref - trust it (may be a deliberate template override)
+          $ok = $true
+        } else {
+          [void] $definedNamesNode.RemoveChild($n)   # drop externalised / #REF! / surplus duplicates
+        }
+      }
+      if ($ok) { continue }
+
+      $new = $doc.CreateElement('definedName', $mainNs)
+      $new.SetAttribute('name', $nm)
+      $new.InnerText = $spec.Body
+      [void] $definedNamesNode.AppendChild($new)
+      $restored++
+    }
+
+    if ($restored -gt 0) {
+      $old = $zip.GetEntry('xl/workbook.xml')
+      if ($null -ne $old) { $old.Delete() }
+      $newEntry = $zip.CreateEntry('xl/workbook.xml')
+      $writer = [System.IO.StreamWriter]::new($newEntry.Open(), [System.Text.UTF8Encoding]::new($false))
+      try { $doc.Save($writer) } finally { $writer.Dispose() }
+    }
+  } finally { $zip.Dispose() }
+
+  return $restored
+}
+
+# ---------------------------------------------------------------------------
 # Excel COM helpers
 # ---------------------------------------------------------------------------
 
@@ -1034,6 +1148,10 @@ try {
 
         if ($targetNameSet.ContainsKey($nm)) {
           # Fix names that got externalised (point back to a local sheet) during sheet copy.
+          # NOTE: Excel's COM keeps re-externalising some names while the source
+          # workbook is open, so this is a best-effort pass only - the
+          # authoritative repair is Restore-SourceWorkbookScopedNames, run as the
+          # final XML step below.
           $existing = $targetNameSet[$nm]
           $curRefers = ''
           try { $curRefers = [string] $existing.RefersTo } catch { }
@@ -1417,6 +1535,21 @@ try {
   }
 
   Mark-Phase 'strip phantom links (XML)'
+  # --- Restore module result names that got externalised/dropped -------------
+  # Excel's COM keeps re-externalising some workbook-scoped names while the
+  # source workbook stays open during assembly (observed: VEERG_*_Result_Method*
+  # cells that evaluate to #VALUE! in the add-in-less headless build). The
+  # sheet-scoped-shadow prune and the phantom-[N]-link strip then delete every
+  # copy, so a custom Results sheet's "=Name" reads 0. Rebuild those names,
+  # workbook-scoped, straight from each source workbook's own definition - XML
+  # only, and last, so nothing undoes it.
+  $resultNamesRestored = 0
+  if (-not $DryRun) {
+    $resultNamesRestored = Restore-SourceWorkbookScopedNames -TargetPath $OutputPath -SourceWorkbookPaths $resolvedModuleWorkbooks
+    if ($resultNamesRestored -gt 0) { Write-Host ("Restored {0} module result name(s) from source." -f $resultNamesRestored) }
+  }
+
+  Mark-Phase 'restore result names (XML)'
   # --- Normalise the view zoom of every sheet to 100% -------------------------
   if (-not $DryRun) {
     $zoomChanged = Set-WorkbookZoom -Path $OutputPath -Zoom 100
@@ -1445,6 +1578,7 @@ try {
     Write-Host ("Defined names added    : {0}" -f $namesAdded)
     Write-Host ("Defined names re-linked: {0}" -f $namesFixed)
     Write-Host ("Defined names skipped  : {0}" -f $namesFailed)
+    Write-Host ("Result names restored  : {0}" -f $resultNamesRestored)
     Write-Host ("Sheet-scoped dupes rm  : {0}" -f $namesDeduped)
     Write-Host ("Excel Labs modules add : {0}" -f @($mergedModules.Added).Count)
     Write-Host ("Excel Labs modules upd : {0}" -f @($mergedModules.Updated).Count)

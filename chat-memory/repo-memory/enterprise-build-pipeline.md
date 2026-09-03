@@ -27,9 +27,29 @@ shared common sheets, then refreshes `generated-sourcedata/*.json` + `InputField
 
 ## Stage 3 — `npm run build-enterprise [-- <Id>]`
 Copies template fresh, imports module sheets, merges/updates AFE modules, prunes
-sheet-scoped shadow names, sets `fullCalcOnLoad`. Omit `<Id>` = build ALL
-`Enterprise_*.json`. Output: `Excel/Enterprises/Enterprise_<Id>_WIP_v01.xlsx`.
+sheet-scoped shadow names, restores `VEERG_*_Result_Method*` names from source
+(see enterprise-result-names-restore.md), sets `fullCalcOnLoad`. Omit `<Id>` =
+build ALL `Enterprise_*.json`. Output: `Excel/Enterprises/Enterprise_<Id>_WIP_v01.xlsx`.
 Dry: `:dry`. Shadow-only fix: `npm run prune-enterprise-names`.
+
+### Resumable / incremental "build all" (2026-09)
+Auto-discovery mode (no `<Id>`) now:
+- runs **each enterprise in its own `powershell` process** — a crash / OOM in one
+  no longer aborts the rest; prints a per-enterprise summary (built / skipped /
+  FAILED + duration) and exits 1 with a `-- -Only <ids>` retry hint if any failed.
+- **freshness-skips** an enterprise whose `_WIP_v01.xlsx` is newer than its config,
+  `_ModuleRegistry.json`, template, every resolved module source workbook, AND the
+  build scripts (`build-enterprise-excel.ps1` + everything it dot-sources). Any
+  build-script change therefore invalidates ALL outputs (intentional; use `-Only`
+  to test one).
+- flags: `-Only Swine,Poultry` (subset), `-From Poultry` (resume from, discovery
+  order), `-Skip Dairy,Feedlot`, `-Force` (ignore freshness). `-DryRun` and
+  explicitly-named (`-Only`/`-From`) enterprises always build.
+- npm passes `-Only Swine,Poultry` as ONE literal token (not a PS array) — the
+  script splits on `[,;\s]`.
+
+`build-scope3` got the same freshness gate (+ `-Force`); it opens no workbook when
+the output is already up to date.
 
 ## Stage 4 — `npm run clean-enterprise [-- <Id>]`
 Writes a SEPARATE `…_Clean_…​.xlsx` with every input cell/table field blanked (formulas

@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "enterprise": {
+    "id": "CroppingCotton",
+    "name": "Cropping Cotton Enterprise",
+    "description": "A cotton cropping enterprise: emissions from cotton crop production (fertiliser, crop residue), plus the farm's energy, waste and upstream (Scope 3) emissions. Cotton shares the Chapter 2 'Cropping' module map with grains/legumes/sugarcane/forage.",
+    "templateWorkbook": "Enterprise_CroppingCotton_Template_WIP_v01.xlsx",
+    "outputWorkbook": "Enterprise_CroppingCotton_WIP_v01.xlsx",
+    "allocatable": false
+  },
+
+  "customSheets": [
+    {
+      "name": "Results - Activity period",
+      "kind": "results",
+      "source": "custom",
+      "description": "The single enterprise-wide results tab, unique to this enterprise. Module Results tabs are NOT imported; this sheet reads each module's result cells directly by named range."
+    },
+    {
+      "name": "Results - Product EI",
+      "kind": "results",
+      "source": "custom",
+      "description": "The Product EI results tab, unique to this enterprise. Module Results tabs are NOT imported; this sheet reads each module's result cells directly by named range."
+    },
+    {
+      "name": "Input - Enterprise",
+      "kind": "input",
+      "source": "custom",
+      "description": "Optional enterprise-level input sheet for values shared across modules. Imported module input sheets are kept as-is alongside this one."
+    },
+    {
+      "name": "Input - Crop",
+      "kind": "input",
+      "source": "custom",
+      "description": "Optional enterprise-level input sheet for values shared across modules. Imported module input sheets are kept as-is alongside this one."
+    },
+    {
+      "name": "Input - Fert Prod System",
+      "kind": "input",
+      "source": "custom",
+      "description": "Non-user editable inputs that take values from the imported 'Input - Crop' sheet"
+    },
+    {
+      "name": "Input - Data quality",
+      "kind": "input",
+      "source": "custom",
+      "description": "Cropping - specific data quality inputs. This is a custom sheet that is not imported from any module."
+    }
+  ],
+
+  "modules": [
+    {
+      "id": "Fertiliser",
+      "comment": "Cotton cropping has its own fertiliser production systems inputs.",
+      "include": {
+        "input": ["Input - Fertiliser"],
+        "calculation": ["5.1.1.1-2 Inorganic fert N2O", "5.1.1.3-4 Inorganic fert CO2", "5.2.1.1-2 Organic Fert N2O", "5.3.1.1-2 Lime CO2", "5.4.1.1-4 Atmos deposition", "5.5.1.1-2 Leaching and runoff"],
+        "constants": ["Constants - Fertiliser"]
+      }
+    },
+    "Electricity_Scope2",
+    "Fuel",
+    "SolidWaste",
+    {
+      "id": "AgriculturalResidue",
+      "comment": "Cotton cropping only needs the crop residue chain (cotton stalks / gin trash): 6.1 Crop residue N2O, 6.3 Leach runoff crop and 6.4 Residue burning (which depend only on the crop residue sheet and Input - Crop, not on any pasture sheet or Input - Pasture). 6.2 Pasture residue N2O is not required. Input - Crop is supplied by the enterprise template (declared in customSheets), so it is listed here only to KEEP the input subset explicit - omitting the 'input' key makes the builder fall back to this module's full registry input list, which pulls in Input - Pasture. Input - Crop being a customSheet means it is skipped here, not imported.",
+      "include": {
+        "input": ["Input - Crop"],
+        "calculation": ["6.1.1.1-2 Crop residue N2O", "6.3.1.1-2 Leach runoff crop"],
+        "constants": ["Constants - Ag Residue"]
+      }
+    },
+    {
+      "id": "Scope3",
+      "comment": "Scope 3 upstream sources for a cropping enterprise: purchased fertiliser (15.4), agrichemicals (15.5), lime (15.6), services/contractors (15.7), other goods & services (15.10), upstream fuel (15.11), upstream electricity (15.12) and waste management (15.13) - all handled by the '15 Scope 3' sheet. The Scope 3 module's livestock-purchase input sheets are not relevant to a crop-only enterprise.",
+      "include": {
+        "input": ["Input - Common farm inputs", "Input - Crop pasture farm input", "Input - Freight"],
+        "calculation": ["15 Scope 3"],
+        "constants": ["Constants - Scope 3"]
+      }
+    }
+  ],
+
+  "options": {
+    "registry": "_ModuleRegistry.json",
+    "includeCommonSheets": true,
+    "importModuleResultsSheets": false,
+    "dedupeSheetsByName": true,
+    "dedupeExcelLabsModules": true,
+    "onDuplicateSheet": "skip",
+    "sheetOrder": [ "custom", "input", "calculation", "constants", "common"],
+    "menu": {
+      "comment": "The column-A navigation menu is regenerated on every sheet from the final sheet set. Groups are assigned automatically: Home/Results = untitled; any sheet named 'Input*' = INPUTS; calculation sheets = CALCULATIONS; everything else = APPENDICES. 'labels' overrides the link text for a sheet (default derivation strips the 'Input - ' prefix, otherwise uses the sheet name). Set enabled=false to leave existing menus untouched.",
+      "enabled": true,
+      "labels": {
+        "Home": "Home",
+        "Results - Activity period": "Results - Activity period",
+        "Results - Product EI": "Results - Product EI",
+        "Input - Enterprise": "Enterprise",
+        "Input - Site": "Site",
+        "Input - Crop": "Crop",
+        "Input - Fert Prod System": "Fert Prod System",
+        "Input - Fertiliser": "Fertiliser",
+        "Input - Fuel": "Fuel",
+        "Input - Electricity": "Electricity",
+        "Input - Common farm inputs": "Common farm inputs",
+        "Input - Crop pasture farm input": "Crop pasture farm input",
+        "Input - Freight": "Freight",
+        "Input - Solid waste": "Solid waste",
+        "5.1.1.1-2 Inorganic fert N2O": "5.1.1.1-2 Inorganic fert N2O",
+        "5.1.1.3-4 Inorganic fert CO2": "5.1.1.3-4 Inorganic fert CO2",
+        "5.2.1.1-2 Organic Fert N2O": "5.2.1.1-2 Organic fert N2O",
+        "5.3.1.1-2 Lime CO2": "5.3.1.1-2 Lime CO2",
+        "5.4.1.1-4 Atmos deposition": "5.4.1.1-4 Atmos. deposition",
+        "5.5.1.1-2 Leaching and runoff": "5.5.1.1-2 Leaching & runoff",
+        "6.1.1.1-2 Crop residue N2O": "6.1.1.1-2 Crop residue N2O",
+        "6.3.1.1-2 Leach runoff crop": "6.3.1.1-2 Leach & runoff (crop)",
+        "6.4.1.1-2 Residue burning": "6.4.1.1-2 Residue burning",
+        "8.1.1.1-2 Transport fuel": "8.1.1.1-2 Transport fuel",
+        "8.2.1.1-2 Stationary fuel": "8.2.1.1-2 Stationary fuel",
+        "10.1.1-2 Solid waste treatment": "10.1.1.1-2 Solid waste",
+        "14.1.1-2 Purchased electricity": "14.1.1-2 Purchased electricity",
+        "15 Scope 3": "15 Scope 3",
+        "Constants - Ag Residue": "Constants - Ag residue",
+        "Constants - Electricity": "Constants - Electricity",
+        "Constants - Fertiliser": "Constants - Fertiliser",
+        "Constants - Fuel": "Constants - Fuel",
+        "Constants - Scope 3": "Constants - Scope 3",
+        "Constants - Solid Waste": "Constants - Solid Waste",
+        "Constants - Common": "Constants - Common"
+      }
+    }
+  }
+}

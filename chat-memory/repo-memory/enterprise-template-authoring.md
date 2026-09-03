@@ -161,3 +161,48 @@ a `$`-stripped A1 ref. `Get-CellUnitText` resolves `t="s"` (shared string),
 PS5.1 gotcha hit: inline `if(){}else{}` inside a `-f` format-string argument
 position throws "term 'if' is not recognized" (same class as the
 test-scenarios.md note) - compute into a variable first.
+
+## Enterprise_*.json `include` gotchas (2026-09, drafting Enterprise_CroppingCotton)
+- OMITTING a category key from a module's `include` object does NOT mean "import
+  none of that category" - the builder falls back to the module's FULL registry
+  list for that category. Dropping `"input"` from AgriculturalResidue's include
+  (because `Input - Crop` had been promoted to a customSheet) pulled in
+  `Input - Pasture` on a crop-only enterprise. To import a subset, or nothing,
+  the key must be PRESENT with an explicit array (`"input": ["Input - Crop"]`,
+  or `"input": []`).
+- A sheet listed BOTH in `customSheets` AND a module `include`: the module's plan
+  entry is skipped (`$customNames.Contains($entry.Name)` -> `continue`), custom
+  wins. So keeping it in `include` is a harmless no-op that keeps the subset
+  explicit (and avoids the fallback above).
+- `commonSheetProviders` pointing at a module the enterprise does NOT include ->
+  harmless "module does not provide sheet X; falling back to selection order"
+  warning every build. Copy-paste artifact - remove it. Enterprise_CroppingGrains
+  carries the same dead `"Input - Site": "ManureManagement_BeefPasture"`.
+- Cotton has NO separate Module Map in Chapter_2 - the "Cropping" section covers
+  grains / legumes / cotton / sugarcane / rice / forage collectively, so
+  Enterprise_CroppingCotton.json == Enterprise_CroppingGrains.json bar
+  id/name/workbook names. (Grains omits Refrigerants 9.1 though the Cropping map
+  lists it; cotton followed the grains precedent - flagged, not silently chosen.)
+
+## Editing a `*_Template_*.xlsx` by hand / XML (2026-09)
+- Turning a FORMULA cell into a non-formula cell (e.g. an inline string) via zip
+  XML leaves `xl/calcChain.xml` pointing at a cell with no `<f>` -> Excel
+  **refuses to open the file** (`Unable to get the Open property of the
+  Workbooks class` from COM; a silent repair prompt headless). Fix: delete
+  `xl/calcChain.xml` + its `[Content_Types].xml` Override + its
+  `workbook.xml.rels` relationship; Excel and build-enterprise regenerate it.
+- A template `Input - Crop` (or any base sheet) with a formula referencing a
+  TABLE that only exists once a module sheet is imported (`Table_SourceData_
+  CropAttributes` lives on `Constants - Ag Residue`): build-enterprise opens the
+  template COPY before importing, so Excel bakes `#REF!` into the formula TEXT -
+  not recoverable by recalc. Wrap the table refs in
+  `INDIRECT("Table_SourceData_CropAttributes[Crop type]")` - a real formula that
+  opens clean and resolves lazily on `fullCalcOnLoad`. (`ca="1"` on the cell is
+  expected - INDIRECT is volatile.)
+- External link in a template that Excel's UI can't Break Link (structured-table
+  ref to another workbook via full path or `[N]` index, e.g.
+  `[1]!Table_SourceData_CropAttributes[Crop type]`): de-externalise the formula
+  in the sheet XML (`[1]!Table_...` -> bare `Table_...`), then
+  `scripts/remove-phantom-external-links.ps1 -Commit -WorkbookPath <template>`
+  strips the now-orphan `externalLink1.xml` + `<externalReference>` + rel +
+  content-type override.
