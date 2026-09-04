@@ -51,6 +51,18 @@ Auto-discovery mode (no `<Id>`) now:
 `build-scope3` got the same freshness gate (+ `-Force`); it opens no workbook when
 the output is already up to date.
 
+### Memory: prefer batches over "build all" (2026-09, confirmed by user)
+The single-process `& $PSCommandPath` loop (pre-2026-09) built all 7 enterprises
+in ONE PowerShell process, accumulating leaked Excel RCWs -> the process ran out
+of memory and crashed near the last enterprise (observed: run completed all 7
+but the terminal died at/after `Enterprise_Swine`). The 2026-09 per-enterprise
+child-process model + a headless-EXCEL sweep between iterations removes the
+accumulation, BUT on a memory-constrained machine the user still prefers NOT to
+run all at once. Recommended: `npm run build-enterprise -- -Only <id>` (one or a
+few), or `-From <id>` to resume, rather than a bare `build-enterprise`. The
+freshness gate already means a bare run after a small change only rebuilds the
+stale ones, so "all 7" is rare in practice anyway.
+
 ## Stage 4 — `npm run clean-enterprise [-- <Id>]`
 Writes a SEPARATE `…_Clean_…​.xlsx` with every input cell/table field blanked (formulas
 untouched). Source workbook never modified. WEB-APP DELIVERABLE: the conversation input

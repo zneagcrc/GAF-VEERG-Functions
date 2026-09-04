@@ -737,6 +737,17 @@ function Invoke-EnterpriseBuildLoop {
       Write-Host ("=== {0} done in {1:mm\:ss} ===" -f $item.Name, $sw.Elapsed) -ForegroundColor Green
     }
     $results.Add([pscustomobject]@{ Id = $item.Id; Status = $status; Detail = ("{0:mm\:ss}" -f $sw.Elapsed) })
+
+    # The child process has fully exited, so no build is running now: sweep any
+    # HEADLESS Excel COM server it left behind (a crashed child leaks one). This
+    # is why a plain "build all" no longer accumulates memory across enterprises
+    # the way the old in-process loop did - but it is still safest to build in
+    # small batches (-Only / -From) on a memory-constrained machine.
+    try {
+      Get-Process EXCEL -ErrorAction SilentlyContinue |
+        Where-Object { $_.MainWindowHandle -eq 0 } |
+        Stop-Process -Force -ErrorAction SilentlyContinue
+    } catch { }
     [GC]::Collect(); [GC]::WaitForPendingFinalizers()
   }
 

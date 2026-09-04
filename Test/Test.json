@@ -14,6 +14,48 @@
                 "TestExcelDirectory": "Enterprises",
                 "TestInputFile": "Enterprises/EnvironmentalPlantings/TestInput_Enterprise_EnvironmentalPlantings.json",
                 "TestResultsFile": "Enterprises/EnvironmentalPlantings/TestResults_Enterprise_EnvironmentalPlantings.json"
+            },
+            "CroppingCotton": {
+                "TestID": "Enterprise_CroppingCotton",
+                "TestExcelFile": "Enterprise_CroppingCotton",
+                "TestExcelDirectory": "Enterprises",
+                "TestInputFile": "Enterprises/CroppingCotton/TestInput_Enterprise_CroppingCotton.json",
+                "TestResultsFile": "Enterprises/CroppingCotton/TestResults_Enterprise_CroppingCotton.json"
+            },
+            "CroppingGrains": {
+                "TestID": "Enterprise_CroppingGrains",
+                "TestExcelFile": "Enterprise_CroppingGrains",
+                "TestExcelDirectory": "Enterprises",
+                "TestInputFile": "Enterprises/CroppingGrains/TestInput_Enterprise_CroppingGrains.json",
+                "TestResultsFile": "Enterprises/CroppingGrains/TestResults_Enterprise_CroppingGrains.json"
+            },
+            "Dairy": {
+                "TestID": "Enterprise_Dairy",
+                "TestExcelFile": "Enterprise_Dairy",
+                "TestExcelDirectory": "Enterprises",
+                "TestInputFile": "Enterprises/Dairy/TestInput_Enterprise_Dairy.json",
+                "TestResultsFile": "Enterprises/Dairy/TestResults_Enterprise_Dairy.json"
+            },
+            "Feedlot": {
+                "TestID": "Enterprise_Feedlot",
+                "TestExcelFile": "Enterprise_Feedlot",
+                "TestExcelDirectory": "Enterprises",
+                "TestInputFile": "Enterprises/Feedlot/TestInput_Enterprise_Feedlot.json",
+                "TestResultsFile": "Enterprises/Feedlot/TestResults_Enterprise_Feedlot.json"
+            },
+            "Poultry": {
+                "TestID": "Enterprise_Poultry",
+                "TestExcelFile": "Enterprise_Poultry",
+                "TestExcelDirectory": "Enterprises",
+                "TestInputFile": "Enterprises/Poultry/TestInput_Enterprise_Poultry.json",
+                "TestResultsFile": "Enterprises/Poultry/TestResults_Enterprise_Poultry.json"
+            },
+            "Swine": {
+                "TestID": "Enterprise_Swine",
+                "TestExcelFile": "Enterprise_Swine",
+                "TestExcelDirectory": "Enterprises",
+                "TestInputFile": "Enterprises/Swine/TestInput_Enterprise_Swine.json",
+                "TestResultsFile": "Enterprises/Swine/TestResults_Enterprise_Swine.json"
             }
         },
         "AgResidue": {
