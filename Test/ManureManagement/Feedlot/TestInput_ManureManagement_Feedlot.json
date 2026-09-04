@@ -40,18 +40,24 @@
       "Cols": {
         "Domestic": {
           "FeedIntake": 10.4,
+          "EtherExtract": 4.8,
+          "NDF": 22,
           "DryMatterDigestibility": 0.81,
           "CrudeProtein": 0.14,
           "NRetention": 20.4
         },
         "MidFed": {
           "FeedIntake": 10.8,
+          "EtherExtract": 5,
+          "NDF": 22,
           "DryMatterDigestibility": 0.81,
           "CrudeProtein": 0.12,
           "NRetention": 12.7
         },
         "LongFed": {
           "FeedIntake": 8.2,
+          "EtherExtract": 5.5,
+          "NDF": 24,
           "DryMatterDigestibility": 0.81,
           "CrudeProtein": 0.12,
           "NRetention": 7
@@ -66,18 +72,24 @@
       "Cols": {
         "Domestic": {
           "FeedIntake": 10.4,
+          "EtherExtract": 4.8,
+          "NDF": 22,
           "DryMatterDigestibility": 0.81,
           "CrudeProtein": 0.14,
           "NRetention": 20.4
         },
         "MidFed": {
           "FeedIntake": 10.8,
+          "EtherExtract": 5,
+          "NDF": 22,
           "DryMatterDigestibility": 0.81,
           "CrudeProtein": 0.12,
           "NRetention": 12.7
         },
         "LongFed": {
           "FeedIntake": 8.2,
+          "EtherExtract": 5.5,
+          "NDF": 24,
           "DryMatterDigestibility": 0.81,
           "CrudeProtein": 0.12,
           "NRetention": 7

@@ -476,6 +476,33 @@ inputs are injected:
 npm run create-test-excel:overrides -- -TestID 3_3_Enteric_Dairy
 ```
 
+**Batch modes:** instead of a single `-TestID`, run every entry in the registry, split
+by kind. Each entry runs in its own child `powershell` process (a crash in one doesn't
+abort the rest); a per-entry `PASS`/`FAIL` summary is printed and the exit code is `1`
+if any entry failed.
+
+| Command | Runs |
+|---|---|
+| `npm run create-test-excel:modules` | every `TestID` **not** under `Tests.Enterprises` (the per-chapter module tests) |
+| `npm run create-test-excel:enterprises` | every `TestID` under `Tests.Enterprises` |
+| `npm run create-test-excel:all` | both |
+
+The underlying switches are `-ModulesOnly`, `-EnterprisesOnly`, `-All`. None may be
+combined with `-TestID`. Every other parameter (`-ScenarioName`, `-Context`,
+`-DifferenceTolerance`, `-IncludeOverrides`, …) is forwarded unchanged to each child run,
+e.g. `npm run create-test-excel:enterprises -- -DifferenceTolerance 0.01`.
+
+**`-ShowFailuresOnly`** trims the output to failures:
+- single `-TestID`: the "Result differences" list shows only the `[FAIL]` rows (the
+  `Result summary: pass=…, fail=…` line is still printed).
+- batch modes: entries that pass print nothing; only failing entries show their full
+  output, and the batch summary lists only the failures (`(no failures)` when all pass).
+
+```powershell
+npm run create-test-excel:enterprises -- -ShowFailuresOnly
+npm run create-test-excel -- -TestID Enterprise_Dairy -ShowFailuresOnly
+```
+
 **Notes:**
 - Close the source workbook in Excel before running — an open workbook causes a file-lock error.
 - Each run creates a new timestamped copy; it never overwrites a previous test workbook.

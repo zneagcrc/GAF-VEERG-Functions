@@ -10,7 +10,24 @@ param(
   [string] $Context = 'Test',
   [double] $DifferenceTolerance = 0.00001,
   [switch] $IncludeOverrides,
-  [string] $OverridesDir
+  [string] $OverridesDir,
+
+  # Batch modes: instead of a single -TestID, run many entries from the config,
+  # each in its own child process (the single-entry logic below is untouched).
+  #   -ModulesOnly     : every TestID that is NOT under Tests.Enterprises
+  #   -EnterprisesOnly : every TestID under Tests.Enterprises
+  #   -All             : both of the above
+  # None of these may be combined with -TestID. Exit code is 1 if any entry fails.
+  [switch] $ModulesOnly,
+  [switch] $EnterprisesOnly,
+  [switch] $All,
+
+  # Trim output to failures only:
+  #   single -TestID : the "Result differences" list shows only the FAIL rows
+  #                    (the pass/fail summary line is still printed).
+  #   batch modes    : passing entries print nothing; only failing entries show
+  #                    their output, and the batch summary lists only failures.
+  [switch] $ShowFailuresOnly
 )
 
 Set-StrictMode -Version Latest
@@ -63,6 +80,126 @@ $resolvedConfigPath = (Resolve-Path -LiteralPath $ConfigPath).Path
 
 if ($IncludeOverrides -and [string]::IsNullOrWhiteSpace($OverridesDir)) {
   $OverridesDir = Join-Path $RepoRoot 'overrides'
+}
+
+# --- Batch modes ($ModulesOnly / $EnterprisesOnly / $All) -------------------
+# Re-invoke this script once per selected TestID as a child process, then
+# aggregate pass/fail. The single-entry code path below is never entered here.
+$runModules     = $ModulesOnly.IsPresent -or $All.IsPresent
+$runEnterprises = $EnterprisesOnly.IsPresent -or $All.IsPresent
+if ($runModules -or $runEnterprises) {
+  if (-not [string]::IsNullOrWhiteSpace($TestID)) {
+    throw "-TestID cannot be combined with -ModulesOnly / -EnterprisesOnly / -All."
+  }
+
+  # This dispatcher drives child processes and checks their exit codes itself, so
+  # a child that exits non-zero (or writes to stderr) must not abort the loop.
+  $ErrorActionPreference = 'Continue'
+
+  # All TestID strings anywhere under $Node (an entry is a leaf object with a TestID).
+  function Get-TestIdsUnderNode {
+    param([AllowNull()] [object] $Node)
+    if ($null -eq $Node) { return }
+    $props = @($Node.PSObject.Properties)
+    if (($props.Name -contains 'TestID') -and -not [string]::IsNullOrWhiteSpace([string] $Node.TestID)) {
+      [string] $Node.TestID
+      return
+    }
+    foreach ($p in $props) {
+      Get-TestIdsUnderNode -Node $p.Value
+    }
+  }
+
+  $batchConfig = (Get-Content -LiteralPath $resolvedConfigPath -Raw) | ConvertFrom-Json
+  $testsNode = $batchConfig.Tests
+  if ($null -eq $testsNode) {
+    throw "Config '$resolvedConfigPath' has no top-level 'Tests' node."
+  }
+
+  $enterpriseNode = $null
+  if (@($testsNode.PSObject.Properties.Name) -contains 'Enterprises') {
+    $enterpriseNode = $testsNode.Enterprises
+  }
+  $enterpriseIds = @(Get-TestIdsUnderNode -Node $enterpriseNode)
+  $enterpriseSet = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::OrdinalIgnoreCase)
+  foreach ($id in $enterpriseIds) { [void] $enterpriseSet.Add($id) }
+
+  $allIds = @(Get-TestIdsUnderNode -Node $testsNode)
+  $moduleIds = @($allIds | Where-Object { -not $enterpriseSet.Contains($_) })
+
+  $selectedIds = New-Object System.Collections.Generic.List[string]
+  if ($runModules)     { foreach ($id in $moduleIds)     { [void] $selectedIds.Add($id) } }
+  if ($runEnterprises) { foreach ($id in $enterpriseIds) { [void] $selectedIds.Add($id) } }
+  $selectedIds = @($selectedIds.ToArray() | Select-Object -Unique)
+
+  $scopeLabel = if ($runModules -and $runEnterprises) { 'modules + enterprises' }
+                elseif ($runModules) { 'modules' }
+                else { 'enterprises' }
+
+  if ($selectedIds.Count -eq 0) {
+    throw "No $scopeLabel test entries found in '$resolvedConfigPath'."
+  }
+
+  # Forward every explicitly-passed parameter except -TestID and the batch switches.
+  $forwardExclude = @('TestID', 'ModulesOnly', 'EnterprisesOnly', 'All')
+  $forwardArgs = New-Object System.Collections.Generic.List[string]
+  foreach ($kv in $PSBoundParameters.GetEnumerator()) {
+    if ($forwardExclude -contains $kv.Key) { continue }
+    if ($kv.Value -is [System.Management.Automation.SwitchParameter]) {
+      if ($kv.Value.IsPresent) { [void] $forwardArgs.Add('-' + $kv.Key) }
+    } else {
+      [void] $forwardArgs.Add('-' + $kv.Key)
+      [void] $forwardArgs.Add([string] $kv.Value)
+    }
+  }
+  $forwardArgsArray = $forwardArgs.ToArray()
+
+  Write-Host ("Batch mode ({0}): {1} test entr{2} from {3}" -f `
+    $scopeLabel, $selectedIds.Count, $(if ($selectedIds.Count -eq 1) { 'y' } else { 'ies' }), $resolvedConfigPath)
+
+  $batchResults = New-Object System.Collections.Generic.List[psobject]
+  foreach ($id in $selectedIds) {
+    $childArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath, '-TestID', $id) + $forwardArgsArray
+    if ($ShowFailuresOnly) {
+      # Capture every stream (2>&1) as text and print it only if the child failed.
+      # Safe here because $ErrorActionPreference is 'Continue' for this dispatcher:
+      # a failing child's stderr becomes non-terminating pipeline text rather than
+      # aborting the loop.
+      $childOutput = @(& powershell @childArgs 2>&1 | ForEach-Object { [string] $_ })
+      $code = $LASTEXITCODE
+      if ($code -ne 0) {
+        Write-Host ''
+        Write-Host ("===== {0} (FAILED) =====" -f $id) -ForegroundColor Cyan
+        $childOutput | ForEach-Object { Write-Host $_ }
+      }
+    } else {
+      Write-Host ''
+      Write-Host ("===== {0} =====" -f $id) -ForegroundColor Cyan
+      & powershell @childArgs
+      $code = $LASTEXITCODE
+    }
+    [void] $batchResults.Add([pscustomobject]@{ TestID = $id; Passed = ($code -eq 0); ExitCode = $code })
+  }
+
+  $failed = @($batchResults | Where-Object { -not $_.Passed })
+  $passed = @($batchResults | Where-Object { $_.Passed })
+  Write-Host ''
+  Write-Host ("===== Batch summary ({0}) =====" -f $scopeLabel)
+  $summaryRows = @($batchResults)
+  if ($ShowFailuresOnly) {
+    $summaryRows = @($failed)
+  }
+  foreach ($r in $summaryRows) {
+    Write-Host ("  [{0}] {1}" -f $(if ($r.Passed) { 'PASS' } else { 'FAIL' }), $r.TestID)
+  }
+  if ($ShowFailuresOnly -and $failed.Count -eq 0) {
+    Write-Host '  (no failures)'
+  }
+  Write-Host ("Totals: {0} passed, {1} failed, {2} total." -f $passed.Count, $failed.Count, $batchResults.Count)
+  if ($failed.Count -gt 0) {
+    exit 1
+  }
+  exit 0
 }
 
 if ([string]::IsNullOrWhiteSpace($TestID)) {
@@ -1476,16 +1613,24 @@ try {
         $entryProps = @()
         $entryDataIsObject = $null -ne $entryData -and $null -ne $entryData.PSObject -and $null -ne $entryData.PSObject.Properties -and -not ($entryData -is [string])
         if ($entryDataIsObject) {
-          # A null-valued property carries nothing to write — and, critically, it's the ONLY reliable
-          # signal (short of trusting field names) that a property is a formula-suppressed field which
-          # picked up a stray value at some point and got blanked back to null rather than removed (see
-          # applyFormulaNulls server-side) rather than a genuinely unfilled real field, which this app
-          # always represents as "" (empty string), never null. Dropping null-valued properties BEFORE
-          # indexing into $nonFormulaPositions is what stops a stray nulled formula key sitting midway
-          # through a previously-calculated row from shifting every real (non-null) field after it into
-          # the wrong column. Since every generation always starts from a fresh copy of the pristine
-          # template, skipping a null has no visible effect either way (the cell is already blank).
-          $entryProps = @($entryData.PSObject.Properties | Where-Object { $null -ne $_.Value })
+          if ($tableAllowsFormulaOverwrite) {
+            # $nonFormulaPositions here is a plain 1..N list (every column), so this path relies on a
+            # 1:1 field-order -> column-order mapping. A null-valued field must therefore be KEPT so it
+            # still consumes its column slot (the write is skipped for it below) — dropping it would
+            # shift every later field one column left, e.g. a null formula 'Source' column making
+            # 'GenerationDate' land in 'Source' (Table_Input_RECConsumedByEntity).
+            $entryProps = @($entryData.PSObject.Properties)
+          } else {
+            # Probe-based path: the app omits suppressed formula fields from the row entirely, so a
+            # null-valued property here is the ONLY reliable signal (short of trusting field names)
+            # that a formula-suppressed field picked up a stray value at some point and got blanked
+            # back to null rather than removed (see applyFormulaNulls server-side) — a genuinely
+            # unfilled real field is always "" (empty string), never null. Dropping null-valued
+            # properties BEFORE indexing into $nonFormulaPositions (which already skips the formula
+            # columns) is what stops a stray nulled formula key sitting midway through a
+            # previously-calculated row from shifting every real field after it into the wrong column.
+            $entryProps = @($entryData.PSObject.Properties | Where-Object { $null -ne $_.Value })
+          }
         }
 
         if ($entryProps.Count -eq 0 -and -not $entryDataIsObject) {
@@ -1495,6 +1640,12 @@ try {
         for ($colIndex = 0; $colIndex -lt $entryProps.Count; $colIndex++) {
           $prop = $entryProps[$colIndex]
           if ($null -eq $prop) {
+            continue
+          }
+
+          # A null value carries nothing to write. In the formula-overwrite path the field was kept
+          # only to hold its column position (see above); skip the actual write here.
+          if ($null -eq $prop.Value) {
             continue
           }
 
@@ -1814,9 +1965,15 @@ if ($resultsNonNumeric.Count -gt 0) {
 }
 
 if ($resultDiffs.Count -gt 0) {
-  Write-Host ("Result differences (tolerance={0}):" -f $DifferenceTolerance)
-  foreach ($d in @($resultDiffs | Sort-Object Name)) {
-    Write-Host ("  [{0}] {1}: expected={2}, actual={3}, difference={4}, absDifference={5}" -f $d.Status, $d.Name, $d.Expected, $d.Actual, $d.Difference, $d.AbsDifference)
+  $diffsToShow = @($resultDiffs)
+  if ($ShowFailuresOnly) {
+    $diffsToShow = @($resultDiffs | Where-Object { $_.Status -eq 'FAIL' })
+  }
+  if (@($diffsToShow).Count -gt 0) {
+    Write-Host ("Result differences (tolerance={0}):" -f $DifferenceTolerance)
+    foreach ($d in @($diffsToShow | Sort-Object Name)) {
+      Write-Host ("  [{0}] {1}: expected={2}, actual={3}, difference={4}, absDifference={5}" -f $d.Status, $d.Name, $d.Expected, $d.Actual, $d.Difference, $d.AbsDifference)
+    }
   }
   Write-Host ("Result summary: pass={0}, fail={1}" -f $resultPassCount, $resultFailCount)
 }
