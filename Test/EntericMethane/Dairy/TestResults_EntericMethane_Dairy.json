@@ -1,12 +1,17 @@
 {
 	"Scenarios": [
 		{
-			"ScenarioName": "Scenario 1",
+			"ScenarioName": "Default scenario",
 			"VEERG_3_3_1_1__1_TotalAnnualMethaneFromEntericFermentationVariation_Result_Method1": 32.46468268,
 			"VEERG_3_3_1_1__1_TotalAnnualMethaneFromEntericFermentationVariation_Result_Method2": 32.46468268
 		},
 		{
-			"ScenarioName": "Scenario 2",
+			"ScenarioName": "NIRAlignment_3_3_EntericMethane_Dairy_01",
+			"VEERG_3_3_1_1__1_TotalAnnualMethaneFromEntericFermentationVariation_Result_Method1": 13.50284245,
+			"VEERG_3_3_1_1__1_TotalAnnualMethaneFromEntericFermentationVariation_Result_Method2": 13.50284245
+		},
+		{
+			"ScenarioName": "NIRAlignment_3_3_EntericMethane_Dairy_02",
 			"VEERG_3_3_1_1__1_TotalAnnualMethaneFromEntericFermentationVariation_Result_Method1": 32.46468268,
 			"VEERG_3_3_1_1__1_TotalAnnualMethaneFromEntericFermentationVariation_Result_Method2": 32.46468268
 		}

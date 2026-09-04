@@ -440,7 +440,58 @@ scenario name is added to the output file name so scenarios don't collide.
 npm run create-test-excel -- -TestID 13_Scope3 -ScenarioName "Scenario 1"
 ```
 
+**Inheritance between scenarios** — a scenario only needs to list the cells/tables it
+changes from the one it builds on:
+
+| `ScenarioExtends` | Meaning |
+|---|---|
+| `"<name>"` | Deep-merge this scenario onto that named scenario (resolved first, so chains work). |
+| `null` / `""` | Standalone scenario — no inheritance. |
+| *key absent* | Legacy: the **first** scenario is the standalone default and every other scenario is deep-merged onto it. |
+
+A file may mix all three styles. `TestResultsFile` scenarios follow the same rules and are
+matched to the input scenario by `ScenarioName`. A missing parent name or a circular
+`ScenarioExtends` chain is a hard error.
+
 Input files with no `Scenarios` key keep their existing flat behaviour.
+
+**Follow-on tests** (`-RunFollowOns`) — chain a computed result of one test into
+another. In a resolved TestInput (flat file, or the selected scenario) add:
+
+```jsonc
+"FollowOnTests": [
+  {
+    "TestID": "5_Fertiliser",                       // downstream Test.json entry
+    "ScenarioName": null,                           // optional: downstream base scenario (default: first/flat)
+    "PassOnResults": ["VEERG_4_3_1_8__1_..._Method1"],   // this test's result cells to harvest
+    "Inputs": { "X_Cell_Fertiliser_ProductionSystem": "Crop" },   // downstream flat overrides
+    "InputTables": [ { "TableName": "Table_Input_OrganicFertiliser", "Rows": {
+        "OrganicFertiliser1": { "AmountNAppliedPerHectare": "VEERG_4_3_1_8__1_..._Method1" } } } ],
+    "ExpectedResults": { "VEERG_5_2_1_1__1_..._Method1": 0.0 }    // what the follow-on asserts
+  }
+]
+```
+
+When `-RunFollowOns` is given, after this test runs its `PassOnResults` cells are
+read from the workbook, then for each entry the downstream test runs against:
+its own default TestInput (or the named scenario) **+** `Inputs` **+** `InputTables`
+layered on top, with any value string — flat or inside a table cell — that equals
+one of `PassOnResults` replaced by the harvested number.
+
+An `InputTables` entry merges onto the base table's rows by row key; add
+`"Replace": true` to that entry to instead swap the base table's rows out entirely
+(needed when your row keys differ from the base's — otherwise the rows are appended
+and can overflow the Excel table's fixed height). This also works in a
+`ScenarioExtends` override. It compares against the
+inline `ExpectedResults`. It's a normal child run against a synthesized input/results
+pair, one level deep (the downstream test's own follow-ons are not triggered). The
+parent exits non-zero if its own results or any follow-on fails. Without
+`-RunFollowOns` the follow-ons are noted and skipped. Writing harvested values into
+calculated columns (e.g. `AmountNAppliedPerHectare`) needs the default
+`-Context Test`.
+
+`-TestInputPath` / `-TestResultsPath` override the registry's file paths for a run
+(used internally for follow-ons; also usable directly).
 
 **What it does:**
 1. Reads `Test/Test.json` and finds the entry whose `TestID` matches (searched

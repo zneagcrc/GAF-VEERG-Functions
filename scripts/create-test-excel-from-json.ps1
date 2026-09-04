@@ -27,7 +27,18 @@ param(
   #                    (the pass/fail summary line is still printed).
   #   batch modes    : passing entries print nothing; only failing entries show
   #                    their output, and the batch summary lists only failures.
-  [switch] $ShowFailuresOnly
+  [switch] $ShowFailuresOnly,
+
+  # Also run any "FollowOnTests" declared in the resolved TestInput (see the
+  # "Follow-on tests" comment further down). Off unless this switch is given.
+  [switch] $RunFollowOns,
+
+  # Override the registry's TestInputFile / TestResultsFile for this run. Used
+  # internally to run a follow-on test from a synthesized input/results pair, but
+  # also usable directly ("run this TestID with my file"). Absolute, or relative
+  # to the Test config's directory.
+  [string] $TestInputPath,
+  [string] $TestResultsPath
 )
 
 Set-StrictMode -Version Latest
@@ -141,7 +152,7 @@ if ($runModules -or $runEnterprises) {
   }
 
   # Forward every explicitly-passed parameter except -TestID and the batch switches.
-  $forwardExclude = @('TestID', 'ModulesOnly', 'EnterprisesOnly', 'All')
+  $forwardExclude = @('TestID', 'ModulesOnly', 'EnterprisesOnly', 'All', 'TestInputPath', 'TestResultsPath')
   $forwardArgs = New-Object System.Collections.Generic.List[string]
   foreach ($kv in $PSBoundParameters.GetEnumerator()) {
     if ($forwardExclude -contains $kv.Key) { continue }
@@ -258,14 +269,14 @@ if (@($testEntry.PSObject.Properties.Name) -contains 'TestExcelDirectory') {
   $testExcelDirectoryName = [string] $testEntry.TestExcelDirectory
 }
 
-$testInputFile = [string] $testEntry.TestInputFile
+$testInputFile = if (-not [string]::IsNullOrWhiteSpace($TestInputPath)) { $TestInputPath } else { [string] $testEntry.TestInputFile }
 if ([string]::IsNullOrWhiteSpace($testInputFile)) {
-  throw "Test entry '$TestID' in '$resolvedConfigPath' is missing TestInputFile."
+  throw "Test entry '$TestID' in '$resolvedConfigPath' is missing TestInputFile (and no -TestInputPath given)."
 }
 
-$testResultsFile = [string] $testEntry.TestResultsFile
+$testResultsFile = if (-not [string]::IsNullOrWhiteSpace($TestResultsPath)) { $TestResultsPath } else { [string] $testEntry.TestResultsFile }
 if ([string]::IsNullOrWhiteSpace($testResultsFile)) {
-  throw "Test entry '$TestID' in '$resolvedConfigPath' is missing TestResultsFile."
+  throw "Test entry '$TestID' in '$resolvedConfigPath' is missing TestResultsFile (and no -TestResultsPath given)."
 }
 
 $configDirectory = Split-Path -Parent $resolvedConfigPath
@@ -290,9 +301,14 @@ $resolvedJsonPath = (Resolve-Path -LiteralPath $jsonPath).Path
 # InputTables array. Select one (by name, else the first) and treat it as the
 # effective object. Files with no "Scenarios" key keep their flat behaviour.
 #
-# The FIRST scenario is the full "default"; any later scenario inherits from it
-# and needs to list only the cells/tables it changes. Non-default selections are
-# deep-merged onto the first scenario (see Merge-ScenarioOnDefault).
+# Inheritance between scenarios:
+#   * "ScenarioExtends": "<name>"  - this scenario is deep-merged onto that named
+#     scenario (which is itself resolved first, so chains work). It only needs to
+#     list the cells/tables it changes.
+#   * "ScenarioExtends": null (or "")  - standalone scenario, no inheritance.
+#   * no "ScenarioExtends" key at all  - legacy behaviour: the FIRST scenario is
+#     the standalone default and every other scenario is deep-merged onto it.
+# A file may mix styles per scenario. Deep-merge is Merge-ScenarioOnDefault.
 
 # Deep clone a JSON-derived object via a JSON round-trip.
 function Copy-JsonObject {
@@ -301,10 +317,12 @@ function Copy-JsonObject {
   return ($Value | ConvertTo-Json -Depth 50 -Compress | ConvertFrom-Json)
 }
 
-# Set (or add) a note property on a PSCustomObject.
+# Set (or add) a note property on a PSCustomObject. The indexer lookup (rather than
+# `.Properties.Name -contains`) works on an object with zero properties too, which
+# StrictMode -Version Latest otherwise turns into a "property 'Name' not found" throw.
 function Set-ObjProp {
   param($Obj, [string] $Name, [AllowNull()] $Value)
-  if ($Obj.PSObject.Properties.Name -contains $Name) {
+  if ($null -ne $Obj.PSObject.Properties[$Name]) {
     $Obj.$Name = $Value
   } else {
     $Obj | Add-Member -NotePropertyName $Name -NotePropertyValue $Value
@@ -329,9 +347,24 @@ function Merge-ColumnMap {
   }
 }
 
+# Return a copy of $Table with its "Replace" marker property removed.
+function Remove-ReplaceMarker {
+  param($Table)
+  if ($null -eq $Table -or -not ($Table.PSObject.Properties.Name -contains 'Replace')) { return $Table }
+  $clean = [pscustomobject]@{}
+  foreach ($p in $Table.PSObject.Properties) {
+    if ($p.Name -ne 'Replace') { Set-ObjProp -Obj $clean -Name $p.Name -Value $p.Value }
+  }
+  return $clean
+}
+
 # Merge an override InputTables array onto a base array, matching by TableName.
 # Matching tables merge property-by-property (Cols/Rows deep-merge by column);
 # unmatched override tables are appended; base tables not mentioned are kept.
+# An override table with "Replace": true instead OVERWRITES the matching base
+# table's Rows/Cols wholesale (rows keyed differently from the base's are not
+# appended). Useful when a follow-on / extending scenario supplies the entire
+# table for its run rather than tweaking individual base rows.
 function Merge-InputTables {
   param($BaseTables, $OverTables)
   $result = New-Object System.Collections.Generic.List[object]
@@ -344,18 +377,21 @@ function Merge-InputTables {
   foreach ($ot in @($OverTables)) {
     if ($null -eq $ot) { continue }
     $tn = if ($ot.PSObject.Properties.Name -contains 'TableName') { [string] $ot.TableName } else { $null }
+    $replaceMembers = ($ot.PSObject.Properties.Name -contains 'Replace') -and (Test-IsTruthyFlag -Value $ot.Replace)
     if (($null -ne $tn) -and $index.ContainsKey($tn)) {
       $baseT = $index[$tn]
       foreach ($p in $ot.PSObject.Properties) {
-        if (($p.Name -eq 'Cols' -or $p.Name -eq 'Rows') -and ($baseT.PSObject.Properties.Name -contains $p.Name) -and ($baseT.($p.Name) -is [pscustomobject]) -and ($p.Value -is [pscustomobject])) {
+        if ($p.Name -eq 'Replace') { continue }
+        if ((-not $replaceMembers) -and ($p.Name -eq 'Cols' -or $p.Name -eq 'Rows') -and ($baseT.PSObject.Properties.Name -contains $p.Name) -and ($baseT.($p.Name) -is [pscustomobject]) -and ($p.Value -is [pscustomobject])) {
           Merge-ColumnMap -BaseMap $baseT.($p.Name) -OverMap $p.Value
         } else {
           Set-ObjProp -Obj $baseT -Name $p.Name -Value $p.Value
         }
       }
     } else {
-      [void] $result.Add($ot)
-      if ($null -ne $tn) { $index[$tn] = $ot }
+      $newT = Remove-ReplaceMarker -Table $ot
+      [void] $result.Add($newT)
+      if ($null -ne $tn) { $index[$tn] = $newT }
     }
   }
   return ,$result.ToArray()
@@ -375,6 +411,59 @@ function Merge-ScenarioOnDefault {
     }
   }
   return $merged
+}
+
+# Find a scenario in the array by its ScenarioName (case-insensitive), or $null.
+function Get-ScenarioByName {
+  param($Scenarios, [string] $Name)
+  foreach ($s in @($Scenarios)) {
+    if ($null -eq $s) { continue }
+    if (($s.PSObject.Properties.Name -contains 'ScenarioName') -and
+        [string]::Equals([string] $s.ScenarioName, $Name, [System.StringComparison]::OrdinalIgnoreCase)) {
+      return $s
+    }
+  }
+  return $null
+}
+
+# Return a fully-resolved (inheritance-applied) clone of $Scenario. See the
+# "Scenario selection" comment above for the rules.
+function Resolve-Scenario {
+  param(
+    [Parameter(Mandatory = $true)] $Scenarios,
+    [Parameter(Mandatory = $true)] $Scenario,
+    [Parameter(Mandatory = $true)] [string] $SourceLabel,
+    [AllowNull()] $Visiting
+  )
+
+  if ($null -eq $Visiting) {
+    $Visiting = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::OrdinalIgnoreCase)
+  }
+
+  $name = if ($Scenario.PSObject.Properties.Name -contains 'ScenarioName') { [string] $Scenario.ScenarioName } else { '' }
+
+  if ($Scenario.PSObject.Properties.Name -contains 'ScenarioExtends') {
+    $extendsName = [string] $Scenario.ScenarioExtends
+    if ([string]::IsNullOrWhiteSpace($extendsName)) {
+      return (Copy-JsonObject $Scenario)          # explicit standalone
+    }
+    if (-not $Visiting.Add($name)) {
+      throw "Circular 'ScenarioExtends' chain in $SourceLabel at scenario '$name'."
+    }
+    $parent = Get-ScenarioByName -Scenarios $Scenarios -Name $extendsName
+    if ($null -eq $parent) {
+      throw "Scenario '$name' in $SourceLabel extends unknown scenario '$extendsName'."
+    }
+    $resolvedParent = Resolve-Scenario -Scenarios $Scenarios -Scenario $parent -SourceLabel $SourceLabel -Visiting $Visiting
+    [void] $Visiting.Remove($name)
+    return (Merge-ScenarioOnDefault -Default $resolvedParent -Override $Scenario)
+  }
+
+  # Legacy: first scenario is the standalone default, every other inherits from it.
+  if (@($Scenarios).Count -gt 0 -and [object]::ReferenceEquals($Scenario, @($Scenarios)[0])) {
+    return (Copy-JsonObject $Scenario)
+  }
+  return (Merge-ScenarioOnDefault -Default @($Scenarios)[0] -Override $Scenario)
 }
 
 function Select-ScenarioObject {
@@ -407,13 +496,154 @@ function Select-ScenarioObject {
     $selected = $scenarios[0]
   }
 
-  # The first scenario is the full default; a later selection inherits from it
-  # and lists only its changes, so deep-merge it onto the first scenario.
-  if (-not [object]::ReferenceEquals($selected, $scenarios[0])) {
-    $selected = Merge-ScenarioOnDefault -Default $scenarios[0] -Override $selected
+  $effective = Resolve-Scenario -Scenarios $scenarios -Scenario $selected -SourceLabel $SourceLabel
+  return [pscustomobject]@{ Object = $effective; Name = [string] $selected.ScenarioName; HasScenarios = $true }
+}
+
+# --- Follow-on tests -------------------------------------------------------------
+# A resolved TestInput (flat file, or the selected scenario) may carry a
+# "FollowOnTests" array. Each entry chains a computed result of THIS test into a
+# downstream test:
+#   {
+#     "TestID": "5_Fertiliser",            # required - a Test.json entry
+#     "ScenarioName": null,                # optional - downstream base scenario (default: first/flat)
+#     "PassOnResults": ["VEERG_..._Method1"],   # this test's result named-cells to harvest
+#     "Inputs":  { "X_Cell_...": <literal | one of PassOnResults> },   # optional flat overrides
+#     "InputTables": [ ... ],              # optional table overrides (same shape as a scenario's)
+#     "ExpectedResults": { "VEERG_5_...": <number> }   # what the follow-on asserts
+#   }
+# The downstream test runs with: its own default TestInput (or the named scenario)
+# + Inputs + InputTables layered on top, with any value string that equals one of
+# PassOnResults replaced by the harvested number. It is a normal child run of this
+# script against a synthesized input/results pair. Only triggered by -RunFollowOns,
+# and only one level deep (the child is not given -RunFollowOns).
+
+# Recursively replace every string leaf that is a key of $Allow with $Allow[leaf].
+function Convert-FollowOnPlaceholders {
+  param([AllowNull()] $Node, [hashtable] $Allow)
+  if ($null -eq $Node) { return $null }
+  if ($Node -is [string]) {
+    if ($Allow.ContainsKey($Node)) { return $Allow[$Node] }
+    return $Node
+  }
+  if ($Node -is [pscustomobject]) {
+    $out = [pscustomobject]@{}
+    foreach ($p in $Node.PSObject.Properties) {
+      Set-ObjProp -Obj $out -Name $p.Name -Value (Convert-FollowOnPlaceholders -Node $p.Value -Allow $Allow)
+    }
+    return $out
+  }
+  if (($Node -is [System.Collections.IEnumerable]) -and -not ($Node -is [string])) {
+    $list = New-Object System.Collections.Generic.List[object]
+    foreach ($item in $Node) { [void] $list.Add((Convert-FollowOnPlaceholders -Node $item -Allow $Allow)) }
+    return , $list.ToArray()
+  }
+  return $Node
+}
+
+# Build the synthesized downstream input, write the temp input/results files, run
+# the downstream test as a child, and return $true when it passed.
+function Invoke-FollowOnTest {
+  param(
+    [Parameter(Mandatory = $true)] $Definition,
+    [Parameter(Mandatory = $true)] [hashtable] $Harvest,
+    [Parameter(Mandatory = $true)] [string] $ParentTestID,
+    [Parameter(Mandatory = $true)] [string] $ConfigPath,
+    [Parameter(Mandatory = $true)] [string] $RepoRoot,
+    [Parameter(Mandatory = $true)] [string] $Context,
+    [Parameter(Mandatory = $true)] [double] $DifferenceTolerance
+  )
+
+  $foTestId = if ($Definition.PSObject.Properties.Name -contains 'TestID') { [string] $Definition.TestID } else { '' }
+  if ([string]::IsNullOrWhiteSpace($foTestId)) {
+    Write-Warning "Follow-on entry has no TestID; skipped."
+    return $false
   }
 
-  return [pscustomobject]@{ Object = $selected; Name = [string] $selected.ScenarioName; HasScenarios = $true }
+  $cfg = (Get-Content -LiteralPath $ConfigPath -Raw) | ConvertFrom-Json
+  $dsEntry = Find-TestEntryById -Node $cfg -Id $foTestId
+  if ($null -eq $dsEntry) {
+    Write-Warning ("Follow-on '{0}': no matching entry in '{1}'." -f $foTestId, $ConfigPath)
+    return $false
+  }
+
+  # 1. downstream base input (its own default TestInput, or a named scenario).
+  $dsInputRel = [string] $dsEntry.TestInputFile
+  if ([string]::IsNullOrWhiteSpace($dsInputRel)) {
+    Write-Warning ("Follow-on '{0}': entry has no TestInputFile." -f $foTestId)
+    return $false
+  }
+  $cfgDir = Split-Path -Parent $ConfigPath
+  $dsInputPath = if ([System.IO.Path]::IsPathRooted($dsInputRel)) { $dsInputRel } else { Join-Path $cfgDir $dsInputRel }
+  $dsInputPath = (Resolve-Path -LiteralPath $dsInputPath).Path
+  $dsBaseObj = (Get-Content -LiteralPath $dsInputPath -Raw) | ConvertFrom-Json
+  $dsScenName = if ($Definition.PSObject.Properties.Name -contains 'ScenarioName') { [string] $Definition.ScenarioName } else { '' }
+  $dsSel = Select-ScenarioObject -Object $dsBaseObj -RequestedName $dsScenName -SourceLabel ("follow-on base '$dsInputPath'")
+  $merged = Copy-JsonObject $dsSel.Object
+
+  # 2. layer this follow-on's Inputs + InputTables on top of that base.
+  $override = [pscustomobject]@{}
+  if (($Definition.PSObject.Properties.Name -contains 'Inputs') -and $null -ne $Definition.Inputs) {
+    foreach ($p in $Definition.Inputs.PSObject.Properties) {
+      Set-ObjProp -Obj $override -Name $p.Name -Value $p.Value
+    }
+  }
+  if (($Definition.PSObject.Properties.Name -contains 'InputTables') -and $null -ne $Definition.InputTables) {
+    Set-ObjProp -Obj $override -Name 'InputTables' -Value $Definition.InputTables
+  }
+  $merged = Merge-ScenarioOnDefault -Default $merged -Override $override
+
+  # 3. substitute PassOnResults placeholders with harvested values.
+  $allow = @{}
+  foreach ($rn in @($Definition.PassOnResults)) {
+    $k = [string] $rn
+    if ([string]::IsNullOrWhiteSpace($k)) { continue }
+    if ($Harvest.ContainsKey($k)) {
+      $allow[$k] = $Harvest[$k]
+    } else {
+      Write-Warning ("Follow-on '{0}': '{1}' was not harvested from {2}; its placeholders stay literal." -f $foTestId, $k, $ParentTestID)
+    }
+  }
+  if ($allow.Count -gt 0) {
+    $merged = Convert-FollowOnPlaceholders -Node $merged -Allow $allow
+  }
+
+  # 4. write synthesized input + expected-results temp files.
+  $tmpDir = Join-Path $RepoRoot 'Excel\TestExcel'
+  if (-not (Test-Path -LiteralPath $tmpDir)) { [void] (New-Item -ItemType Directory -Path $tmpDir) }
+  $stamp = Get-Date -Format 'HHmmss_fff'
+  $safeId = [regex]::Replace($foTestId, '[^A-Za-z0-9._-]+', '_')
+  $tmpInput = Join-Path $tmpDir ("_followon_{0}_{1}_input.json" -f $safeId, $stamp)
+  $tmpResults = Join-Path $tmpDir ("_followon_{0}_{1}_results.json" -f $safeId, $stamp)
+  ($merged | ConvertTo-Json -Depth 60) | Set-Content -LiteralPath $tmpInput -Encoding UTF8
+  $expected = if ($Definition.PSObject.Properties.Name -contains 'ExpectedResults') { $Definition.ExpectedResults } else { [pscustomobject]@{} }
+  ($expected | ConvertTo-Json -Depth 60) | Set-Content -LiteralPath $tmpResults -Encoding UTF8
+
+  # 5. run the downstream test as a child (NOT given -RunFollowOns -> one level).
+  Write-Host ''
+  Write-Host ("===== follow-on: {0}  (chained from {1}) =====" -f $foTestId, $ParentTestID) -ForegroundColor Cyan
+  foreach ($k in ($allow.Keys | Sort-Object)) {
+    Write-Host ("  passing {0} = {1}" -f $k, $allow[$k])
+  }
+  $childArgs = @(
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath,
+    '-TestID', $foTestId, '-ConfigPath', $ConfigPath,
+    '-TestInputPath', $tmpInput, '-TestResultsPath', $tmpResults,
+    '-Context', $Context, '-DifferenceTolerance', ([string] $DifferenceTolerance)
+  )
+  $eapSaved = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    # Route the child's streams to the host, not this function's output stream -
+    # otherwise the child's stdout lines become part of the return value and the
+    # caller's `if ($passed)` sees a non-empty array (always truthy).
+    & powershell @childArgs 2>&1 | ForEach-Object { Write-Host $_ }
+    $code = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $eapSaved
+    Remove-Item -LiteralPath $tmpInput, $tmpResults -Force -ErrorAction SilentlyContinue
+  }
+  return ($code -eq 0)
 }
 
 $jsonRaw = Get-Content -LiteralPath $resolvedJsonPath -Raw
@@ -428,6 +658,19 @@ if ($inputSelection.HasScenarios) {
   $jsonObject = $inputSelection.Object
 }
 $jsonProperties = @($jsonObject.PSObject.Properties)
+
+# Follow-on tests declared in the resolved TestInput. Only acted on with -RunFollowOns.
+$followOnDefsAll = @()
+if ($jsonObject.PSObject.Properties.Name -contains 'FollowOnTests') {
+  $followOnDefsAll = @($jsonObject.FollowOnTests | Where-Object { $null -ne $_ })
+}
+$runFollowOnDefs = @()
+if ($RunFollowOns) {
+  $runFollowOnDefs = $followOnDefsAll
+} elseif ($followOnDefsAll.Count -gt 0) {
+  Write-Host ("Note: {0} follow-on test(s) defined; pass -RunFollowOns to run them." -f $followOnDefsAll.Count)
+}
+$followOnHarvest = @{}
 
 $resolvedResultsPath = (Resolve-Path -LiteralPath $resultsPath).Path
 $resultsRaw = Get-Content -LiteralPath $resolvedResultsPath -Raw
@@ -1399,7 +1642,10 @@ try {
     'TestResultsFile',
     'InputTables',
     'ScenarioName',
+    'ScenarioDescription',
+    'ScenarioExtends',
     'Scenarios',
+    'FollowOnTests',
     '__FormulaOverwritePolicy'
   )
 
@@ -1813,7 +2059,7 @@ try {
 
   foreach ($resultProp in $resultsProperties) {
     $resultName = [string] $resultProp.Name
-    if ($resultName -eq 'ScenarioName' -or $resultName -eq 'Scenarios') {
+    if ($resultName -eq 'ScenarioName' -or $resultName -eq 'ScenarioDescription' -or $resultName -eq 'ScenarioExtends' -or $resultName -eq 'Scenarios' -or $resultName -eq 'FollowOnTests') {
       continue
     }
     $nameEntry = $null
@@ -1866,6 +2112,30 @@ try {
       })
     } catch {
       [void] $resultsNonNumeric.Add($resultName + ': ' + $_.Exception.Message)
+    }
+  }
+
+  # Harvest the result named-cells that declared FollowOnTests want to pass on,
+  # while the workbook is still open and computed.
+  if ($runFollowOnDefs.Count -gt 0) {
+    $wantedFollowOnResults = New-Object System.Collections.Generic.HashSet[string] ([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($fo in $runFollowOnDefs) {
+      foreach ($rn in @($fo.PassOnResults)) {
+        if (-not [string]::IsNullOrWhiteSpace([string] $rn)) { [void] $wantedFollowOnResults.Add([string] $rn) }
+      }
+    }
+    foreach ($rn in $wantedFollowOnResults) {
+      try {
+        $harvestEntry = $workbook.Names.Item($rn)
+        $harvestVal = Convert-ToNullableDouble -Value $harvestEntry.RefersToRange.Value2
+        if ($null -ne $harvestVal) {
+          $followOnHarvest[$rn] = $harvestVal
+        } else {
+          Write-Warning ("Follow-on: result '{0}' is not numeric; cannot pass it on." -f $rn)
+        }
+      } catch {
+        Write-Warning ("Follow-on: result '{0}' not found in workbook; cannot pass it on." -f $rn)
+      }
     }
   }
 
@@ -1978,6 +2248,30 @@ if ($resultDiffs.Count -gt 0) {
   Write-Host ("Result summary: pass={0}, fail={1}" -f $resultPassCount, $resultFailCount)
 }
 
-if ($resultFailCount -gt 0) {
-  throw ("Test failed: {0} result(s) exceeded tolerance {1}." -f $resultFailCount, $DifferenceTolerance)
+# --- Follow-on tests -------------------------------------------------------------
+$followOnFailCount = 0
+if ($runFollowOnDefs.Count -gt 0) {
+  Write-Host ''
+  Write-Host ("Running {0} follow-on test(s) chained from '{1}'..." -f $runFollowOnDefs.Count, $TestID)
+  if ($resultFailCount -gt 0) {
+    Write-Warning ("This test has {0} out-of-tolerance result(s); values passed on to follow-ons may be wrong." -f $resultFailCount)
+  }
+  $followOnIndex = 0
+  foreach ($fo in $runFollowOnDefs) {
+    $followOnIndex++
+    $passed = Invoke-FollowOnTest -Definition $fo -Harvest $followOnHarvest -ParentTestID $TestID `
+      -ConfigPath $resolvedConfigPath -RepoRoot $RepoRoot -Context $Context -DifferenceTolerance $DifferenceTolerance
+    $foName = if ($fo.PSObject.Properties.Name -contains 'TestID') { [string] $fo.TestID } else { "#$followOnIndex" }
+    if ($passed) {
+      Write-Host ("  [PASS] follow-on {0}" -f $foName)
+    } else {
+      $followOnFailCount++
+      Write-Host ("  [FAIL] follow-on {0}" -f $foName)
+    }
+  }
+  Write-Host ("Follow-on summary: pass={0}, fail={1}" -f ($runFollowOnDefs.Count - $followOnFailCount), $followOnFailCount)
+}
+
+if ($resultFailCount -gt 0 -or $followOnFailCount -gt 0) {
+  throw ("Test failed: {0} result(s) exceeded tolerance {1}; {2} follow-on(s) failed." -f $resultFailCount, $DifferenceTolerance, $followOnFailCount)
 }
