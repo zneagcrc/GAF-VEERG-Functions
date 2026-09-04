@@ -527,14 +527,31 @@ The output is saved next to the source as `YourWorkbook_expanded.xlsx`.
 npm run expand-lambda-functions:auto
 ```
 
+**By scope** (`-ModulesOnly` / `-EnterprisesOnly` / `-All` on the script). Each workbook
+runs in its own child process — a failure in one doesn't abort the rest — and a per-file
+`OK`/`FAILED` summary is printed with exit code `1` if any failed. Template and
+`_expanded` workbooks and `~$` lock files are skipped.
+
+| Command | Scope |
+|---|---|
+| `npm run expand-lambda-functions:modules` | `Excel\*.xlsx` (top level only — the per-chapter modules) |
+| `npm run expand-lambda-functions:enterprises` | `Excel\Enterprises\**\*.xlsx` |
+
+`-All` (both scopes) and `-DryRun` / `-DebugFailedWrites` are available on the script
+directly, and `:modules:dry` / `:enterprises:dry` npm shortcuts exist.
+
 **Variants:**
 
 | Command | Description |
 |---|---|
 | `npm run expand-lambda-functions -- <path>` | Expand a single workbook |
-| `npm run expand-lambda-functions:auto` | Expand all workbooks |
+| `npm run expand-lambda-functions:auto` | Expand every workbook found under `Excel/` (recursive) |
+| `npm run expand-lambda-functions:modules` | Expand the top-level module workbooks |
+| `npm run expand-lambda-functions:enterprises` | Expand the enterprise workbooks |
 | `npm run expand-lambda-functions:dry -- <path>` | Dry run — single workbook, no file written |
 | `npm run expand-lambda-functions:auto:dry` | Dry run — all workbooks, no files written |
+| `npm run expand-lambda-functions:modules:dry` | Dry run — module workbooks |
+| `npm run expand-lambda-functions:enterprises:dry` | Dry run — enterprise workbooks |
 | `npm run expand-lambda-functions:debug -- <path>` | Single workbook with extra debug output on failed writes |
 
 ---

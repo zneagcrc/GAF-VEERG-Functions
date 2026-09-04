@@ -1,12 +1,23 @@
 param(
-  [Parameter(Mandatory = $true)]
   [string] $SourceWorkbook,
 
   [string] $OutputWorkbook,
 
   [switch] $DryRun,
 
-  [switch] $DebugFailedWrites
+  [switch] $DebugFailedWrites,
+
+  # Batch modes: instead of a single -SourceWorkbook, expand every workbook in a
+  # scope, each in its own child process (a crash in one doesn't abort the rest).
+  # None may be combined with -SourceWorkbook. Output for each is <name>_expanded
+  # alongside the source. Exit code is 1 if any workbook failed.
+  #   -ModulesOnly     : Excel\*.xlsx  (top level only - the per-chapter modules)
+  #   -EnterprisesOnly : Excel\Enterprises\**\*.xlsx
+  #   -All             : both of the above
+  [string] $RepoRoot = $(Split-Path $PSScriptRoot -Parent),
+  [switch] $ModulesOnly,
+  [switch] $EnterprisesOnly,
+  [switch] $All
 )
 
 Set-StrictMode -Version Latest
@@ -1171,6 +1182,99 @@ function Expand-VeergLambdaReferences {
     [GC]::Collect()
     [GC]::WaitForPendingFinalizers()
   }
+}
+
+# --- Batch modes ($ModulesOnly / $EnterprisesOnly / $All) -------------------
+# Re-invoke this script once per discovered workbook as a child process, then
+# aggregate ok/failed. The single-workbook path below is never entered here.
+$runModules     = $ModulesOnly.IsPresent -or $All.IsPresent
+$runEnterprises = $EnterprisesOnly.IsPresent -or $All.IsPresent
+if ($runModules -or $runEnterprises) {
+  if (-not [string]::IsNullOrWhiteSpace($SourceWorkbook)) {
+    throw "-SourceWorkbook cannot be combined with -ModulesOnly / -EnterprisesOnly / -All."
+  }
+
+  # This dispatcher checks each child's exit code itself, so a child that exits
+  # non-zero (or writes to stderr) must not abort the loop.
+  $ErrorActionPreference = 'Continue'
+
+  $excelRoot = Join-Path $RepoRoot 'Excel'
+  if (-not (Test-Path -LiteralPath $excelRoot -PathType Container)) {
+    throw "Excel directory not found: $excelRoot"
+  }
+  $excelRoot = (Resolve-Path -LiteralPath $excelRoot).Path
+
+  # Skip already-expanded outputs / temp copies and build-only template workbooks.
+  $skipBaseNameRe = [regex] '(?i)(_expanded(?:_tmp\d*)?$|template)'
+  $collectWorkbooks = {
+    param([string] $Root, [bool] $Recurse)
+    if (-not (Test-Path -LiteralPath $Root -PathType Container)) { return @() }
+    $gciArgs = @{ File = $true; Include = @('*.xlsx', '*.xlsm'); ErrorAction = 'SilentlyContinue' }
+    if ($Recurse) { $gciArgs.Path = $Root; $gciArgs.Recurse = $true }
+    else          { $gciArgs.Path = (Join-Path $Root '*') }
+    Get-ChildItem @gciArgs | Where-Object {
+      $_.Name -notlike '~$*' -and
+      -not (Test-IsInOldFolder -Path $_.FullName) -and
+      -not $skipBaseNameRe.IsMatch($_.BaseName)
+    }
+  }
+
+  $targets = New-Object System.Collections.Generic.List[string]
+  if ($runModules) {
+    foreach ($f in @(& $collectWorkbooks $excelRoot $false)) { [void] $targets.Add($f.FullName) }
+  }
+  if ($runEnterprises) {
+    foreach ($f in @(& $collectWorkbooks (Join-Path $excelRoot 'Enterprises') $true)) { [void] $targets.Add($f.FullName) }
+  }
+  $targets = @($targets.ToArray() | Select-Object -Unique | Sort-Object)
+
+  $scopeLabel = if ($runModules -and $runEnterprises) { 'modules + enterprises' }
+                elseif ($runModules) { 'modules' }
+                else { 'enterprises' }
+
+  if ($targets.Count -eq 0) {
+    throw "No $scopeLabel workbooks found under $excelRoot."
+  }
+
+  $forwardArgs = New-Object System.Collections.Generic.List[string]
+  if ($DryRun)            { [void] $forwardArgs.Add('-DryRun') }
+  if ($DebugFailedWrites) { [void] $forwardArgs.Add('-DebugFailedWrites') }
+  $forwardArgsArray = $forwardArgs.ToArray()
+
+  Write-Host ("Batch expand ({0}): {1} workbook(s) under {2}" -f $scopeLabel, $targets.Count, $excelRoot)
+
+  $batchResults = New-Object System.Collections.Generic.List[psobject]
+  foreach ($src in $targets) {
+    $srcDir  = Split-Path -Parent $src
+    $srcBase = [System.IO.Path]::GetFileNameWithoutExtension($src)
+    $srcExt  = [System.IO.Path]::GetExtension($src)
+    $out     = Join-Path $srcDir ("{0}_expanded{1}" -f $srcBase, $srcExt)
+
+    Write-Host ''
+    Write-Host ("===== {0} =====" -f $srcBase) -ForegroundColor Cyan
+    $childArgs = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $PSCommandPath,
+                   '-SourceWorkbook', $src, '-OutputWorkbook', $out) + $forwardArgsArray
+    & powershell @childArgs
+    $code = $LASTEXITCODE
+    [void] $batchResults.Add([pscustomobject]@{ Name = $srcBase; Passed = ($code -eq 0); ExitCode = $code })
+  }
+
+  $failed = @($batchResults | Where-Object { -not $_.Passed })
+  $ok     = @($batchResults | Where-Object { $_.Passed })
+  Write-Host ''
+  Write-Host ("===== Batch summary ({0}) =====" -f $scopeLabel)
+  foreach ($r in $batchResults) {
+    Write-Host ("  [{0}] {1}" -f $(if ($r.Passed) { 'OK' } else { 'FAILED' }), $r.Name)
+  }
+  Write-Host ("Totals: {0} ok, {1} failed, {2} total." -f $ok.Count, $failed.Count, $batchResults.Count)
+  if ($failed.Count -gt 0) {
+    exit 1
+  }
+  exit 0
+}
+
+if ([string]::IsNullOrWhiteSpace($SourceWorkbook)) {
+  throw "SourceWorkbook is required (or use -ModulesOnly / -EnterprisesOnly / -All). Example: -SourceWorkbook .\Excel\5_Fertiliser_WIP_v10.xlsx"
 }
 
 $resolvedSource = (Resolve-Path $SourceWorkbook).Path
